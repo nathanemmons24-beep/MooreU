@@ -2293,8 +2293,9 @@ function bestThumb(v) { return v.thumb || ytThumb(v.url); }
 // ═══════════════════════════════════════════════════════════════
 function showPage(pg) {
   const role = currentUser?.role;
-  // Guard: members/managers can't access full manage; admins can't use tasks page
-  if (pg === 'manage' && role !== 'admin' && role !== 'manager') pg = 'home';
+  // Block manage page if previewing any role, or if member
+  if (pg === 'manage' && (previewRole || (role !== 'admin' && role !== 'manager'))) pg = 'home';
+  // Block tasks page for admin when not previewing
   if (pg === 'tasks' && role === 'admin' && !previewRole) pg = 'home';
 
   document.getElementById('nav-home').classList.toggle('active', pg==='home');
@@ -2315,11 +2316,16 @@ function startPreview(role) {
   const barRole = document.getElementById('preview-bar-role');
   if (bar) bar.classList.add('on');
   if (barRole) barRole.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-  // Highlight active preview button
+
+  // Update active button state
   document.getElementById('prev-btn-member')?.classList.toggle('active-preview', role==='member');
   document.getElementById('prev-btn-manager')?.classList.toggle('active-preview', role==='manager');
-  // Hide manage nav during preview, show home
-  document.getElementById('nav-manage').style.display = 'none';
+
+  // Re-render nav as the previewed role
+  refreshNavManage();
+
+  // Force navigate to home — previewed roles can't be on the manage page
+  activeFilter = 'All';
   showPage('home');
 }
 
@@ -2328,8 +2334,9 @@ function exitPreview() {
   document.getElementById('preview-bar')?.classList.remove('on');
   document.getElementById('prev-btn-member')?.classList.remove('active-preview');
   document.getElementById('prev-btn-manager')?.classList.remove('active-preview');
-  // Restore manage nav for admin/manager with correct label
+  // Restore the real admin nav
   refreshNavManage();
+  activeFilter = 'All';
   showPage('home');
 }
 
@@ -2358,22 +2365,41 @@ function renderSidebar() {
       : '');
 }
 function refreshNavManage() {
-  const role = currentUser?.role;
-  const el = document.getElementById('nav-manage');
+  // Use the REAL role (not preview) for nav — preview is visual only for home page
+  const role    = currentUser?.role;
+  const effRole = previewRole || role; // effective role for nav during preview
+  const el      = document.getElementById('nav-manage');
   const tasksEl = document.getElementById('nav-tasks');
+  const prevBtns = document.getElementById('preview-btns');
 
   if (!el) return;
-  if (role === 'admin') {
-    el.style.display = 'flex';
-    el.innerHTML = '⚙️ Manage Videos';
-    if (tasksEl) tasksEl.style.display = 'none'; // admins don't have My Tasks
-  } else if (role === 'manager') {
-    el.style.display = 'flex';
-    el.innerHTML = '⚙️ Settings';
-    if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+
+  if (previewRole) {
+    // ── PREVIEW MODE: show the nav as the previewed role would see it ──
+    if (prevBtns) prevBtns.classList.remove('on'); // hide preview buttons during preview
+    if (previewRole === 'member') {
+      el.style.display = 'none';
+      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+    } else if (previewRole === 'manager') {
+      el.style.display = 'flex';
+      el.innerHTML = '⚙️ Settings';
+      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+    }
   } else {
-    el.style.display = 'none';
-    if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+    // ── REAL ROLE ─────────────────────────────────────────────
+    if (prevBtns && role === 'admin') prevBtns.classList.add('on');
+    if (role === 'admin') {
+      el.style.display = 'flex';
+      el.innerHTML = '⚙️ Settings';
+      if (tasksEl) tasksEl.style.display = 'none';
+    } else if (role === 'manager') {
+      el.style.display = 'flex';
+      el.innerHTML = '⚙️ Settings';
+      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+    } else {
+      el.style.display = 'none';
+      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+    }
   }
 }
 
@@ -2845,7 +2871,7 @@ function renderManage() {
   if (isManager && !['analytics','settings'].includes(activeManageTab)) activeManageTab = 'analytics';
 
   document.getElementById('main-content').innerHTML = `<div class="manage-wrap">
-    <div class="page-title">${isManager ? 'Settings' : 'Manage Videos'}</div>
+    <div class="page-title">${isManager ? 'Settings' : 'Settings'}</div>
     <div class="page-sub">${isManager ? 'Analytics and team management.' : 'Add and remove resources, manage categories, team, and settings.'}</div>
     ${saveBanner}
     <div class="manage-tabs">${tabs}</div>
