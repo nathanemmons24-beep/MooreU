@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Moore Holdings University</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root {
     --bg:#f4f5f2;--surface:#fff;--border:#d8dbd2;
@@ -1282,12 +1283,36 @@ async function toggleVisibility(role,catName,isVisible){
 }
 
 async function addTeamUser(){
-  const name=document.getElementById('new-user-name')?.value.trim(),email=document.getElementById('new-user-email')?.value.trim(),uname=document.getElementById('new-user-uname')?.value.trim().toLowerCase().replace(/\s+/g,''),pass=document.getElementById('new-user-pass')?.value,role=document.getElementById('new-user-role')?.value;
-  if(!name){showToast('⚠ Enter a name');return;}if(!email){showToast('⚠ Enter email');return;}if(!uname){showToast('⚠ Enter username');return;}if(!pass||pass.length<6){showToast('⚠ Password min 6 chars');return;}
-  if(currentUser?.role==='manager'&&role==='admin'){showToast('⚠ Managers cannot create Admins');return;}
-  if(_dbUsers.some(u=>u.username===uname||(u.email||'').toLowerCase()===email.toLowerCase())){showToast('⚠ Username or email in use');return;}
-  const created=await dbCreateUser({username:uname,name,email,pass,role,inactive:false});
-  if(created?.[0]){_dbUsers.push(created[0]);showToast(`✅ ${name} added`);renderManage();}else showToast('⚠ Failed to create user');
+  const name   = document.getElementById('new-user-name')?.value.trim();
+  const email  = document.getElementById('new-user-email')?.value.trim();
+  const uname  = document.getElementById('new-user-uname')?.value.trim().toLowerCase().replace(/\s+/g,'');
+  const pass   = document.getElementById('new-user-pass')?.value;
+  const role   = document.getElementById('new-user-role')?.value;
+
+  if(!name)  { showToast('⚠ Enter a full name'); return; }
+  if(!email) { showToast('⚠ Enter an email address'); return; }
+  if(!uname) { showToast('⚠ Enter a username'); return; }
+  if(!pass||pass.length<6) { showToast('⚠ Password must be at least 6 characters'); return; }
+  if(currentUser?.role==='manager'&&role==='admin') { showToast('⚠ Managers cannot create Admin accounts'); return; }
+  if(_dbUsers.some(u=>u.username===uname||(u.email||'').toLowerCase()===email.toLowerCase())) {
+    showToast('⚠ Username or email already in use'); return;
+  }
+
+  showToast('⏳ Creating account…');
+  const created = await dbCreateUser({ username:uname, name, email, pass, role, inactive:false });
+  if(created?.[0]) {
+    _dbUsers.push(created[0]);
+    showToast(`✅ ${name} added as ${role}`);
+    // Send welcome email
+    sendWelcomeEmail({ name, email, username:uname, pass, role });
+    // Clear form fields
+    ['new-user-name','new-user-email','new-user-uname','new-user-pass'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    renderManage();
+  } else {
+    showToast('⚠ Failed to create user — check Supabase connection');
+  }
 }
 async function deleteTeamUser(username){
   const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
@@ -3803,45 +3828,9 @@ function renderSettingsPanel() {
   </div>`;
 }
 
-function addTeamUser() {
-  const name   = document.getElementById('new-user-name')?.value.trim();
-  const email  = document.getElementById('new-user-email')?.value.trim();
-  const uname  = document.getElementById('new-user-uname')?.value.trim().toLowerCase().replace(/\s+/g,'');
-  const pass   = document.getElementById('new-user-pass')?.value;
-  const role   = document.getElementById('new-user-role')?.value;
+// (handled by Supabase layer above)
 
-  if (!name)  { showToast('⚠ Please enter a full name'); return; }
-  if (!email) { showToast('⚠ Please enter an email'); return; }
-  if (!uname) { showToast('⚠ Please enter a username'); return; }
-  if (!pass || pass.length < 6) { showToast('⚠ Password must be at least 6 characters'); return; }
-
-  // Managers cannot create admins
-  if (currentUser?.role === 'manager' && role === 'admin') {
-    showToast('⚠ Managers cannot create Admin accounts'); return;
-  }
-
-  const exists = allUsers().some(u => (u.id===uname || u.username===uname) || u.email.toLowerCase()===email.toLowerCase());
-  if (exists) { showToast('⚠ Username or email already in use'); return; }
-
-  teamUsers.push({ id: uname, username: uname, name, email, pass, role });
-  saveTeamUsers();
-  showToast(`✅ ${name} added as ${role}`);
-  renderManage();
-}
-
-function deleteTeamUser(username) {
-  const u = teamUsers.find(u => u.username===username || u.id===username);
-  if (!u) return;
-  // Managers cannot delete admins
-  if (currentUser?.role === 'manager' && u.role === 'admin') {
-    showToast('⚠ Managers cannot remove Admin accounts'); return;
-  }
-  if (!confirm(`Remove ${u.name} from the team?`)) return;
-  teamUsers = teamUsers.filter(u => u.username!==username && u.id!==username);
-  saveTeamUsers();
-  showToast(`🗑 ${u.name} removed`);
-  renderManage();
-}
+// (handled by Supabase layer above)
 
 // toggleVisibility is defined in the Supabase layer above (uses dbSetVis)
 
@@ -4703,24 +4692,7 @@ function openUserEditModal(username) {
   document.getElementById('user-edit-overlay').style.display='flex';
 }
 
-function saveUserEdit() {
-  const u = teamUsers.find(u=>u.username===editingUserId||u.id===editingUserId);
-  if (!u) return;
-  const newName  = document.getElementById('eu-name')?.value.trim();
-  const newEmail = document.getElementById('eu-email')?.value.trim();
-  const newPass  = document.getElementById('eu-pass')?.value;
-  const newRole  = document.getElementById('eu-role')?.value;
-  if (!newName)  { showToast('⚠ Name cannot be empty'); return; }
-  u.name  = newName;
-  u.email = newEmail;
-  u.role  = newRole;
-  if (newPass && newPass.length >= 6) u.pass = newPass;
-  else if (newPass && newPass.length < 6) { showToast('⚠ Password must be at least 6 characters'); return; }
-  saveTeamUsers();
-  showToast(`✅ ${u.name} updated`);
-  closeUserEditModal();
-  renderManage();
-}
+// (handled by Supabase layer above)
 
 function closeUserEditModal(e) {
   if (!e || e.target===document.getElementById('user-edit-overlay')) {
@@ -4729,26 +4701,9 @@ function closeUserEditModal(e) {
   }
 }
 
-function duplicateTeamUser(username) {
-  const u = teamUsers.find(u=>u.username===username||u.id===username);
-  if (!u) return;
-  const newUname = u.username+'_copy';
-  if (teamUsers.some(x=>x.username===newUname)) { showToast('⚠ Copy already exists — edit the copy first'); return; }
-  const copy = { ...u, username:newUname, id:newUname, name:u.name+' (Copy)', pass:'changeme1' };
-  teamUsers.push(copy);
-  saveTeamUsers();
-  showToast(`⧉ Copy created — username: ${newUname} · password: changeme1`);
-  renderManage();
-}
+// (handled by Supabase layer above)
 
-function toggleUserInactive(username) {
-  const u = teamUsers.find(u=>u.username===username||u.id===username);
-  if (!u) return;
-  u.inactive = !u.inactive;
-  saveTeamUsers();
-  showToast(u.inactive ? `🚫 ${u.name} deactivated — access blocked` : `✅ ${u.name} reactivated`);
-  renderManage();
-}
+// (handled by Supabase layer above)
 
 // ═══════════════════════════════════════════════════════════════
 //  TRAINING PATHS
@@ -5591,10 +5546,65 @@ function renderAnalyticsPanel() {
   return result;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  EMAIL NOTIFICATIONS (EmailJS)
+//  Setup: emailjs.com → create free account → add these IDs
+// ═══════════════════════════════════════════════════════════════
+const EMAILJS_PUBLIC_KEY  = '';  // ← paste your EmailJS public key here
+const EMAILJS_SERVICE_ID  = '';  // ← paste your EmailJS service ID here
+const EMAILJS_TEMPLATE_ID = '';  // ← paste your EmailJS template ID here
+
+function initEmailJS() {
+  if (EMAILJS_PUBLIC_KEY && window.emailjs) {
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  }
+}
+
+async function sendWelcomeEmail({ name, email, username, pass, role }) {
+  const s = loadSettings();
+  const siteName = s.siteName || 'Moore Holdings University';
+  const siteUrl  = window.location.origin;
+
+  // Always log to console so you can see the details
+  console.log(`[Welcome Email] To: ${email} | User: ${username} | Pass: ${pass} | Role: ${role}`);
+
+  // Show in-app notification to admin confirming account was created
+  addNotification({
+    title: `👤 Account created: ${name}`,
+    body:  `Username: ${username} · Role: ${role} · Email: ${email}`,
+    icon:  '👤', color: 'rgba(74,124,63,.12)', type: 'system'
+  });
+
+  // Send real email via EmailJS if configured
+  if (!EMAILJS_PUBLIC_KEY || !EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID) {
+    // EmailJS not set up — show toast with credentials for admin to share manually
+    showToast(`📧 Account created! Share with ${name}: user=${username} pass=${pass}`);
+    return;
+  }
+
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      to_name:   name,
+      to_email:  email,
+      username:  username,
+      password:  pass,
+      role:      role,
+      site_name: siteName,
+      site_url:  siteUrl,
+      from_name: currentUser?.name || 'MooreU Admin',
+    });
+    showToast(`📧 Welcome email sent to ${email}!`);
+  } catch(e) {
+    console.error('EmailJS error:', e);
+    showToast(`⚠ Email failed — share credentials manually: ${username} / ${pass}`);
+  }
+}
+
 window.onload = async () => {
   activeFilter='All'; searchQuery='';
   applySettings(loadSettings());
   initDarkMode();
+  initEmailJS();
   showSyncStatus('Connecting…');
   try {
     _dbUsers = await dbGetUsers() || [];
