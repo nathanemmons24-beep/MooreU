@@ -1324,33 +1324,26 @@ function loadTeamUsers() {
 }
 
 function saveTeamUsers() {
-  localStorage.setItem(USERS_KEY, JSON.stringify(teamUsers));
+  // no-op — users are now managed in Supabase, not localStorage
 }
 
-// Resolve a login attempt against both seed + team users
+// Login uses _dbUsers loaded from Supabase at page start
 function findUser(loginStr, pass) {
   const ls = loginStr.toLowerCase().trim();
-  // Check seed users
-  const seed = SEED_USERS.find(u =>
-    (u.id.toLowerCase()===ls || (u.email||'').toLowerCase()===ls) && u.pass===pass
-  );
-  if (seed) return seed;
-  // Check team users — match username, id, or email
-  const tu = teamUsers.find(u =>
+  const u = _dbUsers.find(u =>
     ((u.username||'').toLowerCase()===ls ||
      (u.id||'').toLowerCase()===ls ||
      (u.email||'').toLowerCase()===ls) && u.pass===pass
   );
-  if (!tu) return null;
-  if (tu.inactive) return { __blocked:true, name:tu.name };
-  return tu;
+  if (!u) return null;
+  if (u.inactive) return { __blocked:true, name:u.name };
+  return u;
 }
 
 function userKey(u) { return u.username || u.id; }
 
 function allUsers() {
-  // Merge seed + team for display, seed first
-  return [...SEED_USERS, ...teamUsers];
+  return _dbUsers;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2187,12 +2180,9 @@ function showToast(msg) {
 async function doLogin(resumeId) {
   let user;
   if (resumeId) {
-    // Resume from session — find active user
-    user = SEED_USERS.find(u => u.id === resumeId || u.username === resumeId);
-    if (!user) {
-      const tu = teamUsers.find(u => u.username === resumeId || u.id === resumeId);
-      if (tu && !tu.inactive) user = tu;
-    }
+    // Resume from session using Supabase user cache
+    const u = _dbUsers.find(u => u.username === resumeId || u.id === resumeId);
+    if (u && !u.inactive) user = u;
   } else {
     const loginStr = document.getElementById('login-user')?.value.trim() || '';
     const pass     = document.getElementById('login-pass')?.value || '';
@@ -5335,8 +5325,22 @@ window.onload = async () => {
   applySettings(loadSettings());
   initDarkMode();
   showSyncStatus('Connecting…');
-  _dbUsers = await dbGetUsers() || [];
+  try {
+    _dbUsers = await dbGetUsers() || [];
+  } catch(e) {
+    _dbUsers = [];
+  }
   showSyncStatus('');
+
+  // If DB returned no users (schema not run yet, or connection issue),
+  // add a local emergency admin so you can always log in
+  if (!_dbUsers.length) {
+    _dbUsers = [{ id:'admin', username:'admin', name:'Admin',
+      email:'admin@mooreu.org', pass:'admin123', role:'admin', inactive:false }];
+    showSyncStatus('⚠ DB not connected — run schema in Supabase');
+    setTimeout(()=>showSyncStatus(''),8000);
+  }
+
   const resumed = resumeSession();
   if (resumed) {
     const u = _dbUsers.find(u=>u.username===resumed||u.id===resumed);
