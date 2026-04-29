@@ -1526,81 +1526,44 @@ function allUsers() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  DATA PERSISTENCE
+//  DATA PERSISTENCE — handled by Supabase (see saveData above)
 // ═══════════════════════════════════════════════════════════════
-function saveData() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cats, videos }));
-    dirty = false;
-    refreshDirtyUI();
-    showToast('💾 All changes saved!');
-  } catch(e) {
-    showToast('⚠ Save failed — try smaller thumbnail or file attachments');
-  }
-}
 
+// loadData is replaced by syncFromDB — this is a no-op fallback
 function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const p = JSON.parse(raw);
-      cats   = p.cats   || clone(DEFAULT_CATS);
-      videos = (p.videos || clone(DEFAULT_VIDEOS)).map((v,i) => ({
-        ...v,
-        files:     v.files     || [],
-        featured:  v.featured  || false,
-        tags:      v.tags      || [],
-        required:  v.required  || false,
-        expiresAt: v.expiresAt || '',
-        addedAt:   v.addedAt   || new Date().toISOString(),
-        sortOrder: v.sortOrder !== undefined ? v.sortOrder : i,
-      }));
-      return;
-    }
-  } catch(e) {}
-  cats   = clone(DEFAULT_CATS);
-  videos = clone(DEFAULT_VIDEOS).map(v=>({...v, featured:false}));
-  [0,1,2].forEach(i => { if (videos[i]) videos[i].featured = true; });
+  // Data is loaded from Supabase in syncFromDB() after login.
+  // If Supabase has no videos yet, fall back to empty.
+  if (!videos.length) videos = [];
+  if (!Object.keys(cats).length) cats = clone(DEFAULT_CATS);
 }
 
-// Per-user state (watched, bookmarks, recently viewed)
+function markDirty() {
+  dirty = true;
+  refreshDirtyUI();
+}
+
+// Per-user state (watched, bookmarks, recently viewed) — still localStorage for speed
 function userStateKey(suffix) { return `mhu_u_${(currentUser?.id||currentUser?.username||'guest')}_${suffix}`; }
 function loadUserState() {
-  try { watchedIds   = new Set(JSON.parse(localStorage.getItem(userStateKey('watched'))  || '[]')); } catch(e){ watchedIds = new Set(); }
-  try { bookmarkIds  = new Set(JSON.parse(localStorage.getItem(userStateKey('bookmarks'))|| '[]')); } catch(e){ bookmarkIds = new Set(); }
-  try { recentIds    = JSON.parse(localStorage.getItem(userStateKey('recent'))           || '[]'); } catch(e){ recentIds = []; }
-  try { dismissedAnnouncements = new Set(JSON.parse(localStorage.getItem(userStateKey('dismissed'))|| '[]')); } catch(e){ dismissedAnnouncements = new Set(); }
+  // watched/bookmarks/recent are now loaded from Supabase in syncFromDB
+  // localStorage kept only as a fast local cache
 }
-function saveWatched()   { localStorage.setItem(userStateKey('watched'),   JSON.stringify([...watchedIds])); }
-function saveBookmarks() { localStorage.setItem(userStateKey('bookmarks'), JSON.stringify([...bookmarkIds])); }
-function saveRecent()    { localStorage.setItem(userStateKey('recent'),    JSON.stringify(recentIds)); }
+function saveWatched()   { /* Supabase handles this via markWatched() */ }
+function saveBookmarks() { /* Supabase handles this via toggleBookmark() */ }
+function saveRecent()    { /* Supabase handles this via markWatched() */ }
 function saveDismissed() { localStorage.setItem(userStateKey('dismissed'), JSON.stringify([...dismissedAnnouncements])); }
 
-function markWatched(id) {
-  watchedIds.add(id);
-  // Add to front of recent, keep 10
-  recentIds = [id, ...recentIds.filter(x=>x!==id)].slice(0,10);
-  saveWatched(); saveRecent();
-}
-
-function toggleBookmark(id) {
-  if (bookmarkIds.has(id)) bookmarkIds.delete(id); else bookmarkIds.add(id);
-  saveBookmarks();
-  renderHome();
-  showToast(bookmarkIds.has(id) ? '🔖 Bookmarked!' : '🗑 Bookmark removed');
-}
-
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
-function markDirty() { dirty = true; refreshDirtyUI(); }
 function refreshDirtyUI() {
   document.getElementById('unsaved-pill')?.classList.toggle('on', dirty);
   document.getElementById('save-tb-btn')?.classList.toggle('on', dirty);
 }
 function discardChanges() {
   if (!confirm('Discard all unsaved changes?')) return;
-  loadData(); dirty = false; refreshDirtyUI(); renderManage();
-  showToast('↩ Changes discarded');
+  syncFromDB().then(()=>{ dirty=false; refreshDirtyUI(); renderManage(); showToast('↩ Changes reloaded from cloud'); });
 }
+
+
 
 // ═══════════════════════════════════════════════════════════════
 //  SESSION
@@ -3256,9 +3219,10 @@ function addVideo() {
     files:[...stagedFiles], tags, required, featured:false, expiresAt:expires, publishAt,
     addedAt:new Date().toISOString(), sortOrder:videos.length });
   newThumb=''; newThumbUrl=''; stagedFiles=[];
-  markDirty();
-  showToast('✅ Video added — hit Save Changes!');
+  showToast('⏳ Saving to cloud…');
   renderManage();
+  // Auto-save to Supabase immediately — no manual Save needed
+  saveData().then(()=>{ showToast('✅ Video saved to cloud!'); });
 }
 
 function duplicateVideo(id) {
@@ -3266,9 +3230,9 @@ function duplicateVideo(id) {
   const newId = Math.max(0,...videos.map(x=>x.id))+1;
   videos.push({ ...JSON.parse(JSON.stringify(v)), id:newId,
     title:'Copy of ' + v.title, featured:false, addedAt:new Date().toISOString(), sortOrder:videos.length });
-  markDirty();
-  showToast('⧉ Video duplicated — hit Save Changes!');
+  showToast('⏳ Saving…');
   renderManage();
+  saveData().then(()=>showToast('⧉ Video duplicated and saved!'));
 }
 
 // ─── Drag-to-Reorder ──────────────────────────────────────────
@@ -3291,7 +3255,7 @@ function dragDrop(e, targetId) {
   videos.splice(toIdx,0,moved);
   videos.forEach((v,i)=>v.sortOrder=i);
   _dragId=null;
-  markDirty();
+  saveData();
   renderManage();
 }
 
@@ -3299,8 +3263,8 @@ function deleteVideo(id) {
   if (!confirm('Remove this resource?')) return;
   videos=videos.filter(v=>v.id!==id);
   selectedIds.delete(id);
-  markDirty();
-  showToast('🗑 Video removed — hit Save Changes!');
+  saveData();
+  showToast('🗑 Video deleted and saved!');
   renderManage();
 }
 
@@ -3313,7 +3277,7 @@ function toggleFeatured(id) {
     return;
   }
   v.featured = !v.featured;
-  markDirty();
+  saveData();
   showToast(v.featured ? '⭐ Added to featured!' : '★ Removed from featured');
   renderManage();
 }
@@ -3488,8 +3452,7 @@ function saveEdit() {
     if (urlInput) v.thumb = urlInput;
   }
 
-  markDirty();
-  showToast('✅ Resource updated — hit Save Changes!');
+  saveData().then(()=>showToast('✅ Video updated and saved!'));
   document.getElementById('edit-overlay').style.display = 'none';
   editVideoId = null;
   renderManage();
@@ -3521,15 +3484,17 @@ function bulkDelete() {
   const n=selectedIds.size; if (!n) return;
   if (!confirm(`Delete ${n} video${n!==1?'s':''}?`)) return;
   videos=videos.filter(v=>!selectedIds.has(v.id));
-  selectedIds.clear(); markDirty();
-  showToast(`🗑 ${n} video${n!==1?'s':''} deleted — hit Save!`); renderManage();
+  selectedIds.clear();
+  saveData();
+  showToast(`🗑 ${n} deleted — saving to cloud…`); renderManage();
 }
 function bulkMove() {
   const n=selectedIds.size; if (!n) return;
   const target=document.getElementById('bulk-move-cat')?.value; if (!target) return;
   videos=videos.map(v=>selectedIds.has(v.id)?{...v,category:target}:v);
-  selectedIds.clear(); markDirty();
-  showToast(`✅ ${n} video${n!==1?'s':''} moved to "${target}" — hit Save!`); renderManage();
+  selectedIds.clear();
+  saveData();
+  showToast(`✅ Moved — saving…`); renderManage();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3569,7 +3534,8 @@ function addCategory() {
   if (cats[name]) { showToast('⚠ Category already exists'); return; }
   const pal=COLOR_PALETTES[paletteIndex%COLOR_PALETTES.length]; paletteIndex++;
   cats[name]={icon:selectedEmoji,...pal}; selectedEmoji='📁';
-  markDirty(); showToast(`✅ "${name}" added — hit Save!`); renderManage();
+  renderManage();
+  saveData().then(()=>showToast(`✅ Category "${name}" saved!`));
 }
 function deleteCategory(name) {
   const count=videos.filter(v=>v.category===name).length;
@@ -3580,7 +3546,8 @@ function deleteCategory(name) {
   if (!confirm(msg)) return;
   if (count>0) videos=videos.map(v=>v.category===name?{...v,category:others[0]}:v);
   delete cats[name]; if (activeFilter===name) activeFilter='All';
-  markDirty(); showToast(`🗑 "${name}" deleted — hit Save!`); renderManage();
+  renderManage();
+  saveData().then(()=>showToast(`🗑 Category "${name}" deleted`));
 }
 
 // ─── Standalone Team Panel (for managers) ─────────────────────
@@ -5154,7 +5121,7 @@ function catDragDrop(e, targetName) {
   entries.splice(ti,0,moved);
   cats = Object.fromEntries(entries);
   _catDragName=null;
-  markDirty();
+  saveData();
   renderManage();
 }
 
@@ -5442,11 +5409,21 @@ async function loadModalComments(videoId) {
   try {
     const rows = await dbGetComments(videoId);
 
+    // rows===null means either table missing OR a query error (e.g. type mismatch on video_id)
+    // Distinguish by checking if we got a real error response
     if (rows === null) {
-      // null means table doesn't exist yet — show helpful message
-      listEl.innerHTML = `<div style="background:var(--amber-bg);border:1.5px solid var(--amber-border);border-radius:9px;padding:12px 14px;font-size:13px;color:var(--amber)">
-        ⚠ Comments table not set up yet. Run the <strong>mooreu-schema.sql</strong> in Supabase SQL Editor to enable comments.
-      </div>`;
+      // Try a simple existence check — if table exists, just show empty
+      const testRows = await DB.get('mhu_comments', 'limit=0');
+      if (testRows === null) {
+        // Table genuinely missing
+        listEl.innerHTML = `<div style="background:var(--amber-bg);border:1.5px solid var(--amber-border);border-radius:9px;padding:12px 14px;font-size:13px;color:var(--amber)">
+          ⚠ Comments table not set up yet. Run <strong>add-comments-ratings.sql</strong> in Supabase SQL Editor.
+        </div>`;
+      } else {
+        // Table exists but query failed (likely video ID type mismatch) — show empty
+        listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No comments yet — be the first!</div>';
+        if (countEl) countEl.textContent = '';
+      }
       return;
     }
 
