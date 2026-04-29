@@ -1031,6 +1031,11 @@ const dbUpsertRating  = (uid,vid,stars)=>DB.upsert('mhu_ratings',{user_id:uid,vi
 let _dbUser=null, _dbUsers=[], _dbProgress=[], _dbRecent=[], _dbNotifs=[];
 let _cachedAssignments=[], _cachedAnalytics=[];
 
+// Analytics state — declared here so refreshAnalytics (below) can access them
+let analyticsRange  = 30;
+let analyticsRole   = 'all';
+let analyticsUserId = 'all';
+
 function showSyncStatus(msg){
   let el=document.getElementById('sync-status');
   if(!el){el=document.createElement('div');el.id='sync-status';
@@ -1473,9 +1478,6 @@ let editStagedFiles = [];
 let editRemovedAssets = new Set();
 let editNewThumb   = '';
 let previewRole    = null;
-let analyticsRange  = 30;
-let analyticsRole   = 'all';
-let analyticsUserId = 'all';
 let reportSearchQ   = '';
 let reportCatFilter = 'all';
 let notifPanelOpen  = false;
@@ -1483,7 +1485,7 @@ let editingUserId   = null;
 let pathsSearchQ    = '';
 let assignSearch    = '';
 let certUserId      = null;
-let tasksFilter     = 'all';  // 'all' | 'pending' | 'overdue' | 'completed' | 'upcoming'
+let tasksFilter     = 'all';
 // Per-user persisted state (saved per user ID)
 let watchedIds     = new Set();   // video IDs the current user has watched
 let bookmarkIds    = new Set();   // video IDs the current user has bookmarked
@@ -3129,7 +3131,18 @@ function renderVideosPanel() {
     <div class="acard-sub">Fill in the details below. Hit <strong>Save Changes</strong> after adding.</div>
     <div class="form-grid">
       <div class="ff"><label>Video Title</label><input type="text" id="new-title" placeholder="e.g. Q2 Office Hours Recap"/></div>
-      <div class="ff"><label>Category</label><select id="new-cat">${catOpts}</select></div>
+      <div class="ff">
+        <label>Category</label>
+        <select id="new-cat" onchange="handleCatSelect(this.value)">
+          ${catOpts}
+          <option value="__new__">＋ Create New Category…</option>
+        </select>
+        <div id="new-cat-inline" style="display:none;margin-top:8px;display:none">
+          <input type="text" id="new-cat-name-inline" placeholder="New category name…"
+            style="width:100%;background:var(--bg);border:1.5px solid var(--green);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none"/>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">This category will be created when you add the video.</div>
+        </div>
+      </div>
       <div class="ff"><label>Duration (e.g. 5:30)</label><input type="text" id="new-dur" placeholder="0:00"/></div>
       <div class="ff"><label>Video URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(YouTube, Vimeo, Loom, or .mp4)</span></label>
         <input type="text" id="new-url" placeholder="https://www.youtube.com/watch?v=... or vimeo.com/..."/></div>
@@ -3197,19 +3210,47 @@ async function handleUpload(e) {
 function previewThumbUrl() { newThumbUrl=document.getElementById('thumb-url-input')?.value?.trim()||''; renderManage(); }
 function clearThumb() { newThumb=''; newThumbUrl=''; renderManage(); }
 
+function handleCatSelect(val) {
+  const inline = document.getElementById('new-cat-inline');
+  if (!inline) return;
+  inline.style.display = val === '__new__' ? 'block' : 'none';
+}
+
 function addVideo() {
   const title    = document.getElementById('new-title')?.value.trim();
-  const cat      = document.getElementById('new-cat')?.value;
+  let   cat      = document.getElementById('new-cat')?.value;
   const dur      = document.getElementById('new-dur')?.value.trim()||'0:00';
   const url      = document.getElementById('new-url')?.value.trim()||'';
   const desc     = document.getElementById('new-desc')?.value.trim()||'No description provided.';
   const tagsRaw  = document.getElementById('new-tags')?.value||'';
   const expires  = document.getElementById('new-expires')?.value||'';
   const required = document.getElementById('new-required')?.checked||false;
+
   if (!title) { showToast('⚠ Please enter a video title'); return; }
+
+  // Handle new inline category
+  if (cat === '__new__') {
+    const newCatName = document.getElementById('new-cat-name-inline')?.value.trim();
+    if (!newCatName) { showToast('⚠ Enter a name for the new category'); return; }
+    if (!cats[newCatName]) {
+      // Auto-create with defaults
+      const defaultColors = ['#4a7c3f','#1a5276','#7c3aed','#c0392b','#b45309','#2c5f1a'];
+      const defaultIcons  = ['📁','📚','🎯','💡','⚡','🏆'];
+      const idx = Object.keys(cats).length % defaultColors.length;
+      cats[newCatName] = {
+        icon: defaultIcons[idx], color: defaultColors[idx],
+        bg: `${defaultColors[idx]}18`, gradient: '#1a1a1a,#2a2a2a'
+      };
+      showToast(`✅ Category "${newCatName}" created!`);
+    }
+    cat = newCatName;
+  }
+
+  if (!cat || !cats[cat]) { showToast('⚠ Please select or create a category'); return; }
+
   const tags = tagsRaw.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
   const thumbVal = newThumb || newThumbUrl || '';
-  const newId = Math.max(0,...videos.map(v=>v.id))+1;
+  const newId = Math.max(0,...videos.map(v=>typeof v.id==='number'?v.id:0))+1;
   const publishAt = document.getElementById('new-publish')?.value||'';
   videos.push({ id:newId, title, category:cat, url, thumb:thumbVal, duration:dur, desc,
     files:[...stagedFiles], tags, required, featured:false, expiresAt:expires, publishAt,
