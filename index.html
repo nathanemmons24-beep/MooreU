@@ -3068,7 +3068,10 @@ function renderManage() {
     if (activeManageTab === 'analytics') _initAnalyticsCharts();
   }, 0);
 }
-function switchTab(t) { activeManageTab=t; renderManage(); }
+function switchTab(t) {
+  activeManageTab = t;
+  if (t === 'analytics') { refreshAnalytics(); } else { renderManage(); }
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  VIDEOS PANEL
@@ -3832,19 +3835,7 @@ function deleteTeamUser(username) {
   renderManage();
 }
 
-function toggleVisibility(role, catName, isVisible) {
-  const vis = loadVisibility();
-  vis[`${role}__${catName}`] = isVisible;
-  saveVisibility(vis);
-  // Update the label text immediately without re-render
-  const cb = event.target;
-  const label = cb.nextElementSibling;
-  if (label) {
-    label.textContent = isVisible ? 'Visible' : 'Hidden';
-    label.style.color = isVisible ? 'var(--green)' : 'var(--muted)';
-  }
-  showToast(`${isVisible?'✅':'🚫'} ${catName} ${isVisible?'visible':'hidden'} for ${role}s`);
-}
+// toggleVisibility is defined in the Supabase layer above (uses dbSetVis)
 
 // ═══════════════════════════════════════════════════════════════
 //  ANALYTICS PANEL
@@ -3975,7 +3966,9 @@ function renderAnalyticsPanel() {
           ${userOpts}
         </select>
       </div>
-      <div style="margin-left:auto;align-self:flex-end">
+      <div style="margin-left:auto;align-self:flex-end;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="export-btn" onclick="refreshAnalytics()" style="background:rgba(74,124,63,.1);border-color:rgba(74,124,63,.3);color:var(--green)">🔄 Refresh</button>
+        ${currentUser?.role==='admin' ? `<button class="export-btn" onclick="seedAnalyticsToDB()" style="background:rgba(124,58,237,.08);border-color:rgba(124,58,237,.2);color:#7c3aed" title="Populate with demo data to preview charts">🌱 Seed Demo Data</button>` : ''}
         <button class="export-btn" onclick="exportAnalyticsCSV()">⬇ Export CSV</button>
       </div>
     </div>
@@ -3988,6 +3981,20 @@ function renderAnalyticsPanel() {
   </div>
 
   <!-- Stat cards -->
+  ${events.length === 0 ? `
+  <div style="background:var(--white);border:1.5px solid var(--border);border-radius:14px;padding:48px 32px;text-align:center;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <div style="font-size:48px;margin-bottom:16px">📊</div>
+    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--text);margin-bottom:8px">No Analytics Data Yet</div>
+    <div style="font-size:14px;color:var(--muted);max-width:400px;margin:0 auto 24px;line-height:1.6">
+      Analytics are recorded as your team watches videos and downloads files. 
+      Click <strong>Seed Demo Data</strong> to populate sample data so you can preview how the charts look.
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      ${currentUser?.role==='admin' ? `<button class="btn-green-lg" style="margin:0" onclick="seedAnalyticsToDB()">🌱 Seed Demo Data</button>` : ''}
+      <button onclick="refreshAnalytics()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 22px;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;cursor:pointer">🔄 Refresh</button>
+    </div>
+  </div>
+  ` : `
   <div class="analytics-grid">
     <div class="stat-card">
       <div class="stat-card-icon">▶️</div>
@@ -4013,9 +4020,9 @@ function renderAnalyticsPanel() {
       <div class="stat-card-value">${totalDls}</div>
       <div class="stat-card-sub">asset downloads</div>
     </div>
-  </div>
+  </div>`}
 
-  <!-- Canvas charts (interactive hover tooltips) -->
+  ${events.length === 0 ? '' : `
   <div class="chart-card">
     <div class="chart-title">📊 Views & Downloads by Day</div>
     <div class="chart-sub">Hover over bars for exact counts · green = views · amber = downloads</div>
@@ -4093,7 +4100,7 @@ function renderAnalyticsPanel() {
     ${dlRowsHTML}
   </div>
 
-  <div id="analytics-chart-init" data-chart='${chartDataB64}'></div>`;
+  <div id="analytics-chart-init" data-chart='${chartDataB64}'></div>`}`;
 }
 
 function _initAnalyticsCharts() {
