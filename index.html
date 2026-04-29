@@ -1079,9 +1079,9 @@ async function syncFromDB(){
       _dbProgress=await dbGetProgress(_dbUser.id)||[];
       _dbRecent=await dbGetRecent(_dbUser.id)||[];
       _dbNotifs=await dbGetNotifs(_dbUser.id)||[];
-      watchedIds=new Set(_dbProgress.filter(p=>p.watched).map(p=>p.video_id));
-      bookmarkIds=new Set(_dbProgress.filter(p=>p.bookmarked).map(p=>p.video_id));
-      recentIds=_dbRecent.map(r=>r.video_id);
+      watchedIds=new Set(_dbProgress.filter(p=>p.watched).map(p=>String(p.video_id)));
+      bookmarkIds=new Set(_dbProgress.filter(p=>p.bookmarked).map(p=>String(p.video_id)));
+      recentIds=_dbRecent.map(r=>String(r.video_id));
       _cachedAssignments=(await dbGetAssigns(_dbUser.id)||[]).map(a=>({
         ...a,videoId:a.video_id,userId:a.user_id,
         videoTitle:videos.find(v=>v.id===a.video_id)?.title||'Unknown',
@@ -1203,18 +1203,20 @@ function findUser(loginStr,pass){
 function userKey(u){return u.username||u.id;}
 
 async function markWatched(videoId){
-  watchedIds.add(videoId);
-  recentIds=[videoId,...recentIds.filter(x=>x!==videoId)].slice(0,10);
+  const sid = String(videoId);
+  watchedIds.add(sid);
+  recentIds=[sid,...recentIds.filter(x=>String(x)!==sid)].slice(0,10);
   if(_dbUser){
-    dbUpsertProg(_dbUser.id,videoId,{watched:true,watched_at:new Date().toISOString()});
-    dbUpsertRecent(_dbUser.id,videoId);
+    dbUpsertProg(_dbUser.id,sid,{watched:true,watched_at:new Date().toISOString()});
+    dbUpsertRecent(_dbUser.id,sid);
   }
 }
 async function toggleBookmark(id){
-  const was=bookmarkIds.has(id);
-  if(was)bookmarkIds.delete(id);else bookmarkIds.add(id);
-  if(_dbUser)dbUpsertProg(_dbUser.id,id,{bookmarked:!was});
-  renderHome();showToast(!was?'🔖 Bookmarked!':'🗑 Bookmark removed');
+  const sid = String(id);
+  const was = bookmarkIds.has(sid);
+  if(was) bookmarkIds.delete(sid); else bookmarkIds.add(sid);
+  if(_dbUser) dbUpsertProg(_dbUser.id,sid,{bookmarked:!was});
+  renderHome(); showToast(!was?'🔖 Bookmarked!':'🗑 Bookmark removed');
 }
 async function saveVideoNote(videoId){
   const val=document.getElementById(`note-area-${videoId}`)?.value||'';
@@ -1863,10 +1865,10 @@ function renderProfileBody() {
 }
 
 function renderProfileOverview(u, uid) {
-  const watched  = videos.filter(v=>watchedIds.has(v.id)).length;
+  const watched  = videos.filter(v=>watchedIds.has(String(v.id))).length;
   const bmarks   = bookmarkIds.size;
   const reqVids  = videos.filter(v=>v.required && !isExpired(v));
-  const reqDone  = reqVids.filter(v=>watchedIds.has(v.id)).length;
+  const reqDone  = reqVids.filter(v=>watchedIds.has(String(v.id))).length;
   const reqPct   = reqVids.length ? Math.round(reqDone/reqVids.length*100) : 100;
   const events   = getAnalyticsEvents().filter(e=>e.userId===uid&&e.type==='view');
   const totalHrs = (events.reduce((s,e)=>s+(e.durationSecs||0),0)/3600).toFixed(1);
@@ -1876,8 +1878,8 @@ function renderProfileOverview(u, uid) {
   const overdue  = getOverdueAssignments(uid);
 
   const reqList = reqVids.slice(0,5).map(v=>`
-    <div class="required-item" onclick="closeProfile();openModal(${v.id})">
-      <div class="required-check ${watchedIds.has(v.id)?'done':''}">${watchedIds.has(v.id)?'✓':''}</div>
+    <div class="required-item" onclick="closeProfile();openModal('${v.id}')">
+      <div class="required-check ${watchedIds.has(String(v.id))?'done':''}">${watchedIds.has(String(v.id))?'✓':''}</div>
       <div class="required-item-title">${v.title}</div>
       <span style="font-size:11px;color:var(--muted)">${v.duration}</span>
     </div>`).join('');
@@ -1931,9 +1933,9 @@ function renderProfileOverview(u, uid) {
     <div class="profile-section">
       <div class="profile-section-hdr">🔖 Bookmarks</div>
       <div class="related-list">
-        ${videos.filter(v=>bookmarkIds.has(v.id)).slice(0,4).map(v=>{
+        ${videos.filter(v=>bookmarkIds.has(String(v.id))).slice(0,4).map(v=>{
           const t=bestThumb(v);
-          return `<div class="related-item" onclick="closeProfile();openModal(${v.id})">
+          return `<div class="related-item" onclick="closeProfile();openModal('${v.id}')">
             <div class="related-thumb">${t?`<img src="${t}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>`:''}}</div>
             <div class="related-title-text">${v.title}</div>
             <span class="related-dur">${v.duration}</span>
@@ -2625,7 +2627,7 @@ function renderHero() {
         <div class="hero-title">${pri.title}</div>
         <div class="hero-desc">${pri.desc}</div>
         <div class="hero-meta"><span class="hero-cat-tag">${m.icon} ${pri.category}</span><span class="hero-dur">⏱ ${pri.duration}</span></div>
-        <button class="hero-watch-btn" onclick="openModal(${pri.id})"><div class="hpi"><div class="hpt"></div></div>Watch Now</button>
+        <button class="hero-watch-btn" onclick="openModal('${pri.id}')"><div class="hpi"><div class="hpt"></div></div>Watch Now</button>
       </div>
       <div class="hero-thumbs">${thumbItems}</div>
     </div>
@@ -2732,7 +2734,7 @@ function renderHome() {
   let requiredBanner = '';
   if (activeFilter === 'All' && !searchQuery && effectiveRole() !== 'admin') {
     const reqAll  = videos.filter(v => v.required && vcats.includes(v.category) && !isExpired(v));
-    const reqDone = reqAll.filter(v => watchedIds.has(v.id));
+    const reqDone = reqAll.filter(v => watchedIds.has(String(v.id)));
     if (reqAll.length > 0 && reqDone.length < reqAll.length) {
       requiredBanner = `<div style="display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#fdf0ee,#fff);border:1.5px solid #e8c5c0;border-radius:12px;padding:13px 18px;margin:0 32px 4px;flex-wrap:wrap">
         <div style="font-size:18px">⭐</div>
@@ -2802,7 +2804,7 @@ function assetCard(a) {
 function stripCard(v) {
   const t = bestThumb(v);
   const m = cats[v.category]||{gradient:'#1a1a1a,#2a2a2a'};
-  return `<div class="strip-card" onclick="openModal(${v.id})">
+  return `<div class="strip-card" onclick="openModal('${v.id}')">
     <div class="strip-thumb">
       ${t ? `<img src="${t}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/><div style="position:absolute;inset:0;background:rgba(0,0,0,.25)"></div>`
           : `<div style="position:absolute;inset:0;background:linear-gradient(135deg,${m.gradient})"></div>`}
@@ -2835,13 +2837,13 @@ function videoCard(v, m) {
   if (isExpired(v)) return ''; // hidden if expired
   const t = bestThumb(v);
   const hasFiles = v.files && v.files.length > 0;
-  const watched  = watchedIds.has(v.id);
-  const bookmarked = bookmarkIds.has(v.id);
+  const watched  = watchedIds.has(String(v.id));
+  const bookmarked = bookmarkIds.has(String(v.id));
   const showNew  = isNew(v) && !v.required;
   const tagsHTML = (v.tags||[]).length
     ? `<div class="tag-list">${v.tags.map(t=>`<span class="vtag" onclick="event.stopPropagation();searchTag('${t}')">#${t}</span>`).join('')}</div>`
     : '';
-  return `<div class="video-card" onclick="openModal(${v.id})">
+  return `<div class="video-card" onclick="openModal('${v.id}')">
     <div class="vthumb">
       ${t ? `<img src="${t}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'"/>
              <div style="position:absolute;inset:0;background:rgba(0,0,0,.3);z-index:1;"></div>`
@@ -2874,7 +2876,9 @@ function videoCard(v, m) {
 //  MODAL
 // ═══════════════════════════════════════════════════════════════
 function openModal(id) {
-  const v = videos.find(x=>x.id===id); if (!v) return;
+  // Find video — handle both UUID strings and legacy integer IDs
+  const v = videos.find(x => x.id === id || x.id === String(id) || String(x.id) === String(id));
+  if (!v) { console.warn('openModal: video not found for id:', id); return; }
   const m = cats[v.category]||{icon:'📁',color:'#4a7c3f',bg:'rgba(74,124,63,.12)'};
 
   // Mark as watched + log analytics
@@ -2904,7 +2908,7 @@ function openModal(id) {
     ? `<div class="tag-list">${v.tags.map(t=>`<span class="vtag" onclick="searchTag('${t}')">#${t}</span>`).join('')}</div>`
     : '';
 
-  const isBookmarked = bookmarkIds.has(id);
+  const isBookmarked = bookmarkIds.has(String(id));
   document.getElementById('modal-cat-tag').innerHTML = `
     <span class="tag" style="background:${m.bg};color:${m.color};font-size:13px;padding:4px 12px">${m.icon} ${v.category} · ${v.duration}</span>
     ${v.required?'<span style="background:#fdf0ee;color:#c0392b;font-size:11px;font-weight:700;padding:3px 9px;border-radius:5px;border:1px solid #e8c5c0">★ Required</span>':''}
@@ -2920,7 +2924,7 @@ function openModal(id) {
         <div class="attach-item">
           <div class="attach-icon">${fileIcon(f.type,f.label||f.name)}</div>
           <div class="attach-info"><div class="attach-name">${f.label||f.name}</div><div class="attach-size">${formatBytes(f.size)}</div></div>
-          <button class="attach-dl-btn" onclick="downloadFile(${v.id},${i})">⬇ Download</button>
+          <button class="attach-dl-btn" onclick="downloadFile('${v.id}',${i})">⬇ Download</button>
         </div>`).join('')}
       </div>
     </div>`;
@@ -2934,7 +2938,7 @@ function openModal(id) {
       <div class="related-title">More in ${v.category}</div>
       <div class="related-list">${related.map(r => {
         const t=bestThumb(r);
-        return `<div class="related-item" onclick="closeModal();openModal(${r.id})">
+        return `<div class="related-item" onclick="closeModal();openModal('${r.id}')">
           <div class="related-thumb">
             ${t?`<img src="${t}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>`:
                `<div style="position:absolute;inset:0;background:linear-gradient(135deg,${(cats[r.category]||{gradient:'#1a1a1a,#2a2a2a'}).gradient})"></div>`}
@@ -2950,9 +2954,9 @@ function openModal(id) {
   // Ratings & Comments — load async after modal opens
   const myR = getVideoRating(id);
   const stars = [1,2,3,4,5].map(n=>
-    `<span id="star-${id}-${n}" onclick="rateVideo(${id},${n})" style="cursor:pointer;font-size:24px;color:${n<=myR?'#f59e0b':'var(--border)'};transition:color .2s"
-      onmouseover="hoverStars(${id},${n})"
-      onmouseout="resetStars(${id},${getVideoRating(id)})">${n<=myR?'★':'☆'}</span>`
+    `<span id="star-${id}-${n}" onclick="rateVideo('${id}',${n})" style="cursor:pointer;font-size:24px;color:${n<=myR?'#f59e0b':'var(--border)'};transition:color .2s"
+      onmouseover="hoverStars('${id}',${n})"
+      onmouseout="resetStars('${id}',${getVideoRating(id)})">${n<=myR?'★':'☆'}</span>`
   ).join('');
 
   const interactHtml = `<div id="modal-rating-comments" style="margin-top:16px;padding-top:14px;border-top:1.5px solid var(--border)">
@@ -2975,7 +2979,7 @@ function openModal(id) {
             style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;resize:vertical;outline:none;transition:border-color .2s"
             placeholder="Add a comment…"
             onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          <button onclick="postComment(${id})"
+          <button onclick="postComment('${id}')"
             style="margin-top:6px;background:var(--green);color:#fff;border:none;border-radius:8px;padding:7px 18px;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:background .2s"
             onmouseover="this.style.background='var(--green-dark)'" onmouseout="this.style.background='var(--green)'">Post Comment</button>
         </div>
@@ -4368,7 +4372,7 @@ function renderReportsPanel() {
         <span style="font-size:12px;color:var(--muted)">${watchCount}/${allU.length}</span>
       </div></td>
       <td style="text-align:center">${v.required?'<span style="color:var(--red);font-weight:700">★ Yes</span>':'<span style="color:var(--muted)">—</span>'}</td>
-      <td><button class="edit-btn" onclick="openAssignModal(${v.id})">📋 Assign</button></td>
+      <td><button class="edit-btn" onclick="openAssignModal('${v.id}')">📋 Assign</button></td>
     </tr>`;
   }).join('');
 
@@ -5242,7 +5246,7 @@ function taskCard(a, watched) {
   const progressPct = done ? 100 : 0;
   const progressColor = done?'var(--green)':a.isOverdue?'var(--red)':a.isSoon?'#f59e0b':'var(--green)';
 
-  return `<div class="task-card ${cardCls}" onclick="openModal(${v?.id||0})">
+  return `<div class="task-card ${cardCls}" onclick="openModal('${v?.id||0}')">
     <div class="task-status-icon" style="background:${statusBg}">${statusIcon}</div>
     <div class="task-body">
       <div class="task-title">${v?.title||'Video Not Found'}</div>
@@ -5259,7 +5263,7 @@ function taskCard(a, watched) {
     </div>
     <div class="task-actions" onclick="event.stopPropagation()">
       <span class="task-priority-badge ${priCls}">${priLbl}</span>
-      <button class="task-watch-btn ${done?'watched':''}" onclick="openModal(${v?.id||0})">
+      <button class="task-watch-btn ${done?'watched':''}" onclick="openModal('${v?.id||0}')">
         ${done ? '✓ Watched' : '▶ Watch Now'}
       </button>
     </div>
