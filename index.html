@@ -661,6 +661,19 @@
   .tasks-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
   @media(max-width:700px){.tasks-stats-row{grid-template-columns:repeat(2,1fr);}.task-card{flex-direction:column;}.task-actions{flex-direction:row;align-items:center;width:100%;}}
 
+  /* ── COMMENTS ── */
+  .comment-card{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+  .comment-card:last-child{border-bottom:none;}
+  .comment-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:#fff;flex-shrink:0;}
+  .comment-body{flex:1;min-width:0;}
+  .comment-author{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;}
+  .comment-role{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;}
+  .comment-stars{color:#f59e0b;font-size:12px;letter-spacing:1px;}
+  .comment-time{font-size:11px;color:var(--muted);margin-left:auto;}
+  .comment-text{font-size:13px;color:var(--text);margin-top:4px;line-height:1.5;}
+  .comment-del{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px 6px;border-radius:4px;transition:all .2s;}
+  .comment-del:hover{color:var(--red);background:var(--red-bg);}
+
   /* ── REQUIRED INDICATOR ── */
   .required-star{color:#c0392b;font-size:13px;margin-left:4px;}
 </style>
@@ -677,7 +690,7 @@
     <div class="login-sub" id="login-sub-text">Employee Training &amp; Development Portal</div>
     <div class="lfield"><label>Username or Email</label><input type="text" id="login-user" placeholder="Enter your username or email"/></div>
     <div class="lfield"><label>Password</label><input type="password" id="login-pass" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
-    <div class="login-hint" id="login-hint-el">🔑 <strong>Demo:</strong> admin / admin123 &nbsp;·&nbsp; manager / manage2024 &nbsp;·&nbsp; employee / train2024</div>
+    <div class="login-hint" id="login-hint-el" style="display:none"></div>
     <button class="btn-primary" onclick="doLogin()">Sign In →</button>
     <div class="login-error" id="login-error">Incorrect username or password.</div>
   </div>
@@ -857,6 +870,288 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════
+//  SUPABASE CONFIG
+// ═══════════════════════════════════════════════════════════════
+const SUPA_URL = 'https://cyfyjshzyeaoogqgrkqr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Znlqc2h6eWVhb29ncWdya3FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NzQ1MzUsImV4cCI6MjA5MzA1MDUzNX0.eAbZiMNdrobugFhyXsVdvedymj39InhyaePuYJGyMFk';
+
+async function sb(path, opts={}) {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/${path}`,{
+      method: opts.method||'GET',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':opts.prefer||(opts.method==='POST'?'return=representation':''),...(opts.headers||{})},
+      body: opts.body?JSON.stringify(opts.body):undefined
+    });
+    if(!res.ok){const t=await res.text();console.warn('[SB]',opts.method||'GET',path,res.status,t);return null;}
+    const t=await res.text(); return t?JSON.parse(t):null;
+  } catch(e){console.warn('[SB network]',e);return null;}
+}
+const DB={
+  get:(t,q='')=>sb(`${t}?${q}`),
+  post:(t,b)=>sb(t,{method:'POST',body:b}),
+  patch:(t,q,b)=>sb(`${t}?${q}`,{method:'PATCH',body:b,prefer:'return=representation'}),
+  upsert:(t,b)=>sb(t,{method:'POST',body:b,prefer:'resolution=merge-duplicates,return=representation'}),
+  del:(t,q)=>sb(`${t}?${q}`,{method:'DELETE'}),
+};
+
+// DB helpers
+const dbGetSettings   = ()=>DB.get('mhu_settings');
+const dbSaveSetting   = (k,v)=>DB.upsert('mhu_settings',{key:k,value:v,updated_at:new Date().toISOString()});
+const dbGetUsers      = ()=>DB.get('mhu_users','order=created_at.asc');
+const dbCreateUser    = u=>DB.post('mhu_users',u);
+const dbUpdateUser    = (id,u)=>DB.patch('mhu_users',`id=eq.${id}`,{...u});
+const dbDelUser       = id=>DB.del('mhu_users',`id=eq.${id}`);
+const dbGetCategories = ()=>DB.get('mhu_categories','order=sort_order.asc');
+const dbSaveCat       = c=>DB.upsert('mhu_categories',c);
+const dbDelCat        = n=>DB.del('mhu_categories',`name=eq.${encodeURIComponent(n)}`);
+const dbGetVideos     = ()=>DB.get('mhu_videos','order=sort_order.asc,added_at.asc');
+const dbSaveVideo     = v=>DB.upsert('mhu_videos',v);
+const dbDelVideo      = id=>DB.del('mhu_videos',`id=eq.${id}`);
+const dbGetFiles      = ()=>DB.get('mhu_files','order=sort_order.asc');
+const dbSaveFile      = f=>DB.upsert('mhu_files',f);
+const dbDelFile       = id=>DB.del('mhu_files',`id=eq.${id}`);
+const dbGetProgress   = uid=>DB.get('mhu_progress',`user_id=eq.${uid}`);
+const dbUpsertProg    = (uid,vid,u)=>DB.upsert('mhu_progress',{user_id:uid,video_id:vid,...u,updated_at:new Date().toISOString()});
+const dbGetRecent     = uid=>DB.get('mhu_recent',`user_id=eq.${uid}&order=viewed_at.desc&limit=10`);
+const dbUpsertRecent  = (uid,vid)=>DB.upsert('mhu_recent',{user_id:uid,video_id:vid,viewed_at:new Date().toISOString()});
+const dbGetAssigns    = uid=>DB.get('mhu_assignments',(uid?`user_id=eq.${uid}&`:'')+`order=created_at.desc`);
+const dbCreateAssign  = a=>DB.post('mhu_assignments',a);
+const dbGetNotifs     = uid=>DB.get('mhu_notifications',`user_id=eq.${uid}&order=created_at.desc&limit=50`);
+const dbCreateNotif   = n=>DB.post('mhu_notifications',n);
+const dbMarkRead      = uid=>DB.patch('mhu_notifications',`user_id=eq.${uid}&read=eq.false`,{read:true});
+const dbDelNotifs     = uid=>DB.del('mhu_notifications',`user_id=eq.${uid}`);
+const dbLogEvent      = e=>DB.post('mhu_analytics',e);
+const dbGetAnalytics  = days=>DB.get('mhu_analytics',`created_at=gte.${new Date(Date.now()-days*86400000).toISOString()}&order=created_at.desc`);
+const dbGetPaths      = ()=>DB.get('mhu_paths','order=created_at.asc');
+const dbSavePath      = p=>DB.upsert('mhu_paths',p);
+const dbDelPath       = id=>DB.del('mhu_paths',`id=eq.${id}`);
+const dbGetVis        = ()=>DB.get('mhu_visibility');
+const dbSetVis        = (role,cat,vis)=>DB.upsert('mhu_visibility',{role,cat_name:cat,visible:vis});
+// Comments
+const dbGetComments   = vid=>DB.get('mhu_comments',`video_id=eq.${vid}&order=created_at.asc`);
+const dbPostComment   = c=>DB.post('mhu_comments',c);
+const dbDeleteComment = id=>DB.del('mhu_comments',`id=eq.${id}`);
+// Ratings (per-video avg from all users)
+const dbGetRatings    = vid=>DB.get('mhu_ratings',`video_id=eq.${vid}`);
+const dbUpsertRating  = (uid,vid,stars)=>DB.upsert('mhu_ratings',{user_id:uid,video_id:vid,stars,updated_at:new Date().toISOString()});
+
+// Runtime caches
+let _dbUser=null, _dbUsers=[], _dbProgress=[], _dbRecent=[], _dbNotifs=[];
+let _cachedAssignments=[], _cachedAnalytics=[];
+
+function showSyncStatus(msg){
+  let el=document.getElementById('sync-status');
+  if(!el){el=document.createElement('div');el.id='sync-status';
+    el.style.cssText='position:fixed;bottom:10px;right:14px;background:rgba(0,0,0,.8);color:#fff;font-size:12px;padding:7px 16px;border-radius:8px;z-index:999;border-left:3px solid var(--green)';
+    document.body.appendChild(el);}
+  el.textContent=msg; el.style.display=msg?'block':'none';
+}
+
+async function syncFromDB(){
+  showSyncStatus('Connecting to cloud…');
+  try{
+    // Settings
+    const sRows=await dbGetSettings()||[];
+    const s=Object.fromEntries(sRows.map(r=>[r.key,r.value]));
+    if(Object.keys(s).length){applySettings({siteName:s.site_name,siteSubtitle:s.site_subtitle,accentColor:s.accent_color,loginHint:s.login_hint,logoData:s.logo_data});}
+
+    // Categories
+    const cRows=await dbGetCategories()||[];
+    cats={};
+    cRows.forEach(c=>{cats[c.name]={icon:c.icon,color:c.color,bg:c.bg,gradient:c.gradient,_id:c.id};});
+    if(!cRows.length){cats=clone(DEFAULT_CATS);}
+
+    // Videos + files
+    const vRows=await dbGetVideos()||[];
+    const fRows=await dbGetFiles()||[];
+    videos=vRows.map(v=>({
+      id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
+      duration:v.duration,desc:v.description,tags:v.tags||[],required:v.required,
+      featured:v.featured,expiresAt:v.expires_at||'',publishAt:v.publish_at||'',
+      sortOrder:v.sort_order,addedAt:v.added_at,
+      files:fRows.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label,type:f.file_type,size:f.file_size,data:f.data}))
+    }));
+    if(!vRows.length){videos=clone(DEFAULT_VIDEOS).map(v=>({...v,featured:false}));[0,1,2].forEach(i=>{if(videos[i])videos[i].featured=true;});}
+
+    // Users
+    _dbUsers=await dbGetUsers()||[];
+
+    // User-specific data
+    if(_dbUser){
+      _dbProgress=await dbGetProgress(_dbUser.id)||[];
+      _dbRecent=await dbGetRecent(_dbUser.id)||[];
+      _dbNotifs=await dbGetNotifs(_dbUser.id)||[];
+      watchedIds=new Set(_dbProgress.filter(p=>p.watched).map(p=>p.video_id));
+      bookmarkIds=new Set(_dbProgress.filter(p=>p.bookmarked).map(p=>p.video_id));
+      recentIds=_dbRecent.map(r=>r.video_id);
+      _cachedAssignments=(await dbGetAssigns(_dbUser.id)||[]).map(a=>({
+        ...a,videoId:a.video_id,userId:a.user_id,
+        videoTitle:videos.find(v=>v.id===a.video_id)?.title||'Unknown',
+        assignedBy:a.assigned_by,due:a.due_date||'',notes:a.notes||''
+      }));
+      const aRows=await dbGetAnalytics(90)||[];
+      _cachedAnalytics=aRows.map(r=>({type:r.event_type,userId:r.user_id,userName:r.user_name,role:r.role,videoId:r.video_id,videoTitle:r.video_title,category:r.category,durationSecs:r.duration_secs,fileName:r.file_name,ts:new Date(r.created_at).getTime()}));
+    }
+
+    // Visibility
+    const visRows=await dbGetVis()||[];
+    const visObj={};visRows.forEach(r=>{visObj[`${r.role}__${r.cat_name}`]=r.visible;});
+    localStorage.setItem(VISIBILITY_KEY,JSON.stringify(visObj));
+
+    showSyncStatus('');return true;
+  }catch(e){console.error('Sync error',e);showSyncStatus('⚠ Offline mode');return false;}
+}
+
+// ── Override key functions to use Supabase ────────────────────
+
+function allUsers(){return _dbUsers;}
+function getAssignments(){return _cachedAssignments;}
+function getAnalyticsEvents(){return _cachedAnalytics;}
+
+function findUser(loginStr,pass){
+  const ls=loginStr.toLowerCase().trim();
+  const u=_dbUsers.find(u=>((u.username||'').toLowerCase()===ls||(u.email||'').toLowerCase()===ls)&&u.pass===pass);
+  if(!u)return null;
+  if(u.inactive)return{__blocked:true,name:u.name};
+  return u;
+}
+function userKey(u){return u.username||u.id;}
+
+async function markWatched(videoId){
+  watchedIds.add(videoId);
+  recentIds=[videoId,...recentIds.filter(x=>x!==videoId)].slice(0,10);
+  if(_dbUser){
+    dbUpsertProg(_dbUser.id,videoId,{watched:true,watched_at:new Date().toISOString()});
+    dbUpsertRecent(_dbUser.id,videoId);
+  }
+}
+async function toggleBookmark(id){
+  const was=bookmarkIds.has(id);
+  if(was)bookmarkIds.delete(id);else bookmarkIds.add(id);
+  if(_dbUser)dbUpsertProg(_dbUser.id,id,{bookmarked:!was});
+  renderHome();showToast(!was?'🔖 Bookmarked!':'🗑 Bookmark removed');
+}
+async function saveVideoNote(videoId){
+  const val=document.getElementById(`note-area-${videoId}`)?.value||'';
+  if(_dbUser)await dbUpsertProg(_dbUser.id,videoId,{note:val});
+  showToast('📝 Note saved');
+}
+async function rateVideo(videoId,stars){
+  if(_dbUser){await dbUpsertProg(_dbUser.id,videoId,{rating:stars});const p=_dbProgress.find(p=>p.video_id===videoId);if(p)p.rating=stars;else _dbProgress.push({video_id:videoId,rating:stars});}
+  showToast(`⭐ Rated ${stars}/5`);
+  for(let i=1;i<=5;i++){const el=document.getElementById(`star-${videoId}-${i}`);if(el)el.style.color=i<=stars?'#f59e0b':'var(--border)';}
+}
+function getVideoRating(vid){return _dbProgress.find(p=>p.video_id===vid)?.rating||0;}
+function getVideoNote(vid){return _dbProgress.find(p=>p.video_id===vid)?.note||'';}
+function getAvgRating(vid){return getVideoRating(vid);}
+
+function getNotifications(){return _dbNotifs;}
+async function addNotification(n){
+  if(_dbUser){const row=await dbCreateNotif({user_id:_dbUser.id,title:n.title,body:n.body||'',icon:n.icon||'🔔',color:n.color||'rgba(74,124,63,.12)',type:n.type||'info',read:false});if(row?.[0])_dbNotifs.unshift(row[0]);}
+  refreshNotifBadge();pushNotifToast(n);
+}
+async function clearAllNotifs(){if(_dbUser)await dbDelNotifs(_dbUser.id);_dbNotifs=[];refreshNotifBadge();renderNotifList();}
+async function renderNotifList(){
+  const list=document.getElementById('notif-list');if(!list)return;
+  if(_dbUser){_dbNotifs=await dbGetNotifs(_dbUser.id)||[];}
+  if(!_dbNotifs.length){list.innerHTML='<div class="notif-empty">You\'re all caught up 🎉</div>';return;}
+  list.innerHTML=_dbNotifs.map(n=>`<div class="notif-item ${n.read?'':'unread'}" onclick="markNotifRead('${n.id}')"><div class="notif-icon" style="background:${n.color||'rgba(74,124,63,.12)'}">${n.icon||'📋'}</div><div class="notif-body"><div class="notif-title">${n.title}</div><div class="notif-sub">${n.body||''}</div><div class="notif-time">${timeAgo(new Date(n.created_at||Date.now()).getTime())}</div></div></div>`).join('');
+  if(_dbUser)await dbMarkRead(_dbUser.id);
+  _dbNotifs=_dbNotifs.map(n=>({...n,read:true}));refreshNotifBadge();
+}
+function refreshNotifBadge(){const u=_dbNotifs.filter(n=>!n.read).length;const b=document.getElementById('notif-badge');if(!b)return;b.style.display=u>0?'flex':'none';b.textContent=u>9?'9+':u;}
+
+async function logAnalyticsEvent(e){
+  if(_dbUser){dbLogEvent({event_type:e.type,user_id:_dbUser.id,user_name:currentUser?.name||'',role:currentUser?.role||'',video_id:e.videoId||null,video_title:e.videoTitle||'',category:e.category||'',duration_secs:e.durationSecs||0,file_name:e.fileName||''});}
+}
+
+async function saveData(){
+  showSyncStatus('Saving to cloud…');
+  try{
+    for(const[name,m]of Object.entries(cats)){
+      await dbSaveCat({id:m._id||undefined,name,icon:m.icon,color:m.color,bg:m.bg,gradient:m.gradient,sort_order:Object.keys(cats).indexOf(name)});
+    }
+    for(const v of videos){
+      const isUuid=/^[0-9a-f-]{36}$/.test(String(v.id));
+      const saved=await dbSaveVideo({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,sort_order:v.sortOrder||0,added_at:v.addedAt||new Date().toISOString()});
+      const savedId=saved?.[0]?.id||v.id;
+      for(let fi=0;fi<(v.files||[]).length;fi++){const f=v.files[fi];await dbSaveFile({id:f._id||undefined,video_id:savedId,name:f.name,label:f.label||f.name,file_type:f.type||'',file_size:f.size||0,data:f.data,sort_order:fi});}
+    }
+    dirty=false;refreshDirtyUI();showSyncStatus('');showToast('💾 Saved to cloud!');
+  }catch(e){console.error(e);showSyncStatus('');showToast('⚠ Save failed');}
+}
+
+async function saveSettings(){
+  const sRows=await dbGetSettings()||[];const ex=Object.fromEntries(sRows.map(r=>[r.key,r.value]));
+  const s={site_name:document.getElementById('set-site-name')?.value.trim()||'Moore Holdings University',site_subtitle:document.getElementById('set-site-sub')?.value.trim()||'Employee Training & Development Portal',login_hint:document.getElementById('set-login-hint')?.value.trim()||'',accent_color:document.getElementById('set-accent')?.value||'#4a7c3f',logo_data:ex.logo_data||''};
+  await Promise.all(Object.entries(s).map(([k,v])=>dbSaveSetting(k,v)));
+  applySettings({siteName:s.site_name,siteSubtitle:s.site_subtitle,loginHint:s.login_hint,accentColor:s.accent_color,logoData:s.logo_data});
+  showToast('💾 Settings saved to cloud!');
+}
+
+async function toggleVisibility(role,catName,isVisible){
+  await dbSetVis(role,catName,isVisible);
+  const vis=loadVisibility();vis[`${role}__${catName}`]=isVisible;localStorage.setItem(VISIBILITY_KEY,JSON.stringify(vis));
+  const cb=event.target,label=cb.nextElementSibling;
+  if(label){label.textContent=isVisible?'Visible':'Hidden';label.style.color=isVisible?'var(--green)':'var(--muted)';}
+  showToast(`${isVisible?'✅':'🚫'} ${catName} ${isVisible?'visible':'hidden'} for ${role}s`);
+}
+
+async function addTeamUser(){
+  const name=document.getElementById('new-user-name')?.value.trim(),email=document.getElementById('new-user-email')?.value.trim(),uname=document.getElementById('new-user-uname')?.value.trim().toLowerCase().replace(/\s+/g,''),pass=document.getElementById('new-user-pass')?.value,role=document.getElementById('new-user-role')?.value;
+  if(!name){showToast('⚠ Enter a name');return;}if(!email){showToast('⚠ Enter email');return;}if(!uname){showToast('⚠ Enter username');return;}if(!pass||pass.length<6){showToast('⚠ Password min 6 chars');return;}
+  if(currentUser?.role==='manager'&&role==='admin'){showToast('⚠ Managers cannot create Admins');return;}
+  if(_dbUsers.some(u=>u.username===uname||(u.email||'').toLowerCase()===email.toLowerCase())){showToast('⚠ Username or email in use');return;}
+  const created=await dbCreateUser({username:uname,name,email,pass,role,inactive:false});
+  if(created?.[0]){_dbUsers.push(created[0]);showToast(`✅ ${name} added`);renderManage();}else showToast('⚠ Failed to create user');
+}
+async function deleteTeamUser(username){
+  const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
+  if(currentUser?.role==='manager'&&u.role==='admin'){showToast('⚠ Managers cannot remove Admins');return;}
+  if(!confirm(`Remove ${u.name}?`))return;
+  await dbDelUser(u.id);_dbUsers=_dbUsers.filter(x=>x.id!==u.id);showToast(`🗑 ${u.name} removed`);renderManage();
+}
+async function toggleUserInactive(username){
+  const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
+  await dbUpdateUser(u.id,{inactive:!u.inactive});u.inactive=!u.inactive;
+  showToast(u.inactive?`🚫 ${u.name} deactivated`:`✅ ${u.name} reactivated`);renderManage();
+}
+async function saveUserEdit(){
+  const u=_dbUsers.find(u=>u.username===editingUserId||u.id===editingUserId);if(!u)return;
+  const nm=document.getElementById('eu-name')?.value.trim(),em=document.getElementById('eu-email')?.value.trim(),pw=document.getElementById('eu-pass')?.value,ro=document.getElementById('eu-role')?.value;
+  if(!nm){showToast('⚠ Name cannot be empty');return;}if(pw&&pw.length<6){showToast('⚠ Password min 6 chars');return;}
+  const upd={name:nm,email:em,role:ro};if(pw&&pw.length>=6)upd.pass=pw;
+  await dbUpdateUser(u.id,upd);Object.assign(u,upd);showToast(`✅ ${u.name} updated`);closeUserEditModal();renderManage();
+}
+async function duplicateTeamUser(username){
+  const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
+  const nu=u.username+'_copy';if(_dbUsers.some(x=>x.username===nu)){showToast('⚠ Copy exists');return;}
+  const c=await dbCreateUser({username:nu,name:u.name+' (Copy)',email:u.email.replace('@','_copy@'),pass:'changeme1',role:u.role,inactive:false});
+  if(c?.[0]){_dbUsers.push(c[0]);showToast('⧉ Copied · pw: changeme1');renderManage();}
+}
+async function saveProfilePassword(){
+  const uid=_dbUser?.id,cur=document.getElementById('prof-cur-pass')?.value,nw=document.getElementById('prof-new-pass')?.value,conf=document.getElementById('prof-conf-pass')?.value;
+  if(!cur||!nw||!conf){showToast('⚠ Fill all fields');return;}if(nw!==conf){showToast('⚠ Passwords don\'t match');return;}if(nw.length<8){showToast('⚠ Min 8 chars');return;}
+  const u=_dbUsers.find(u=>u.id===uid);if(!u||u.pass!==cur){showToast('⚠ Current password incorrect');return;}
+  await dbUpdateUser(uid,{pass:nw});u.pass=nw;showToast('✅ Password updated!');
+  ['prof-cur-pass','prof-new-pass','prof-conf-pass'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});updatePassStrength('');
+}
+
+async function submitAssignment(){
+  const v=videos.find(x=>x.id===_assignVideoId);if(!v)return;
+  const sel=[...document.querySelectorAll('.assign-user-cb:checked')].map(cb=>cb.value);
+  if(!sel.length){showToast('⚠ Select at least one user');return;}
+  const due=document.getElementById('assign-due')?.value||'',notes=document.getElementById('assign-notes')?.value.trim()||'',priority=document.getElementById('assign-priority')?.value||'normal',assignedBy=currentUser?.name||'Admin';
+  for(const uid of sel){
+    const user=_dbUsers.find(u=>u.id===uid||u.username===uid);if(!user)continue;
+    await dbCreateAssign({video_id:v.id,user_id:user.id,assigned_by:assignedBy,due_date:due||null,priority,notes});
+    await dbCreateNotif({user_id:user.id,title:`Training Assigned: ${v.title}`,body:`Assigned by ${assignedBy}${due?' · Due '+due:''}${notes?' · '+notes.slice(0,60):''}`,icon:'📋',color:'rgba(74,124,63,.12)',type:'assignment',read:false});
+  }
+  document.getElementById('assign-overlay')?.classList.remove('on');_assignVideoId=null;
+  showToast(`✅ Assigned to ${sel.length} user${sel.length!==1?'s':''}`);renderManage();
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  CONSTANTS
 // ═══════════════════════════════════════════════════════════════
 const STORAGE_KEY  = 'mhu_v4';
@@ -959,25 +1254,9 @@ const DEFAULT_CATS = {
 };
 
 const NOW_ISO = new Date().toISOString();
-const DEFAULT_VIDEOS = [
-  {id:1,  title:'Welcome to Moore Holdings',        category:'New Hire Training',     url:'https://www.youtube.com/embed/dQw4w9WgXcQ', thumb:'', duration:'4:32',  desc:'Introduction to our company mission, values, and what to expect during your first week.', files:[], tags:['onboarding','welcome'], required:true,  featured:true,  expiresAt:'', addedAt:NOW_ISO, sortOrder:0},
-  {id:2,  title:'Your Benefits Overview',           category:'New Hire Training',     url:'', thumb:'', duration:'6:15',  desc:'Health insurance, 401k, PTO, and all employee benefits available to you as a team member.', files:[], tags:['benefits','hr'], required:true,  featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:1},
-  {id:3,  title:'Company Systems & Tools Setup',    category:'New Hire Training',     url:'', thumb:'', duration:'8:00',  desc:'Getting set up with our core platforms.', files:[], tags:['tools','systems'], required:false, featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:2},
-  {id:4,  title:'Code of Conduct & HR Policies',    category:'New Hire Training',     url:'', thumb:'', duration:'5:20',  desc:'Our expectations for professional behavior, ethics, and positive workplace relationships.', files:[], tags:['hr','compliance'], required:true,  featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:3},
-  {id:5,  title:'January Office Hours Recap',       category:'Office Hours Sessions', url:'', thumb:'', duration:'45:12', desc:'January all-hands session covering Q&A with leadership, company performance, and team updates.', files:[], tags:['office-hours','q&a'], required:false, featured:true,  expiresAt:'', addedAt:NOW_ISO, sortOrder:0},
-  {id:6,  title:'February Office Hours Recap',      category:'Office Hours Sessions', url:'', thumb:'', duration:'38:47', desc:'February session with sales performance review, product updates, and company announcements.', files:[], tags:['office-hours','sales'], required:false, featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:1},
-  {id:7,  title:'March Office Hours Recap',         category:'Office Hours Sessions', url:'', thumb:'', duration:'52:03', desc:'March session featuring department deep-dives and open floor Q&A with the executive team.', files:[], tags:['office-hours','leadership'], required:false, featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:2},
-  {id:8,  title:'Leading High-Performance Teams',   category:'Managers',              url:'', thumb:'', duration:'22:15', desc:'Frameworks for building accountability, motivation, and a strong team culture.', files:[], tags:['leadership','management'], required:true,  featured:true,  expiresAt:'', addedAt:NOW_ISO, sortOrder:0},
-  {id:9,  title:'Conducting Performance Reviews',   category:'Managers',              url:'', thumb:'', duration:'18:40', desc:'How to run effective, fair, and growth-oriented performance reviews.', files:[], tags:['management','reviews'], required:false, featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:1},
-  {id:10, title:'Coaching & Giving Feedback',       category:'Managers',              url:'', thumb:'', duration:'14:55', desc:'Techniques for delivering constructive feedback that inspires improvement.', files:[], tags:['coaching','feedback'], required:false, featured:false, expiresAt:'', addedAt:NOW_ISO, sortOrder:2},
-];
-
+const DEFAULT_VIDEOS = []; // No demo videos — add real content via Manage Videos
 // Built-in seed users (always present as fallback)
-const SEED_USERS = [
-  { id:'admin',   name:'Admin',        email:'admin@mooreholdings.com',   pass:'admin123',  role:'admin'   },
-  { id:'manager', name:'Jane Manager', email:'manager@mooreholdings.com', pass:'manage2024', role:'manager' },
-  { id:'employee',name:'Alex Johnson', email:'alex@mooreholdings.com',    pass:'train2024', role:'member'  },
-];
+const SEED_USERS = []; // All users now managed via Supabase mhu_users table
 
 const COLOR_PALETTES = [
   {color:'#1a5276',bg:'rgba(26,82,118,.12)', gradient:'#0a1a26,#0d2233'},
@@ -1229,10 +1508,7 @@ function applySettings(s) {
     const sub = document.getElementById('login-sub-text');
     if (sub) sub.textContent = s.siteSubtitle;
   }
-  if (s.loginHint) {
-    const h = document.getElementById('login-hint-el');
-    if (h) h.textContent = s.loginHint;
-  }
+  // loginHint intentionally not shown on production
   if (s.accentColor) {
     document.documentElement.style.setProperty('--green', s.accentColor);
     document.documentElement.style.setProperty('--green-dark', darkenHex(s.accentColor, 0.2));
@@ -1908,7 +2184,7 @@ function showToast(msg) {
 // ═══════════════════════════════════════════════════════════════
 //  AUTH
 // ═══════════════════════════════════════════════════════════════
-function doLogin(resumeId) {
+async function doLogin(resumeId) {
   let user;
   if (resumeId) {
     // Resume from session — find active user
@@ -1934,6 +2210,7 @@ function doLogin(resumeId) {
   if (!user) return;
 
   currentUser = user;
+  _dbUser = _dbUsers.find(u => u.username===(user.username||user.id) || u.id===user.id) || user;
   saveSession(userKey(user));
 
   document.getElementById('login-screen').style.display = 'none';
@@ -1970,13 +2247,11 @@ function doLogin(resumeId) {
   timerTickInterval = setInterval(updateSessionTimerDisplay, 30000);
 
   activeHighlight = getDayIndex();
-  loadData();
-  loadUserState();
+  await syncFromDB();
   initDarkMode();
   showPage('home');
   setTimeout(showAnnouncementBar, 400);
   setTimeout(refreshNotifBadge, 200);
-  // Notify user of any assignments
   setTimeout(() => checkUserAssignmentNotifs(), 600);
   setTimeout(() => checkOverdueNotifs(), 800);
 }
@@ -2488,27 +2763,48 @@ function openModal(id) {
     </div>`;
   } else { relEl.innerHTML=''; }
 
-  // Ratings & Notes
-  const avgR = getAvgRating(id);
-  const myR  = getVideoRating(id);
-  const myNote = getVideoNote(id);
+  // Ratings & Comments — load async after modal opens
+  const myR = getVideoRating(id);
   const stars = [1,2,3,4,5].map(n=>
-    `<span id="star-${id}-${n}" onclick="rateVideo(${id},${n})" style="cursor:pointer;font-size:22px;color:${n<=myR?'#f59e0b':'var(--border)'};transition:color .15s" onmouseover="[1,2,3,4,5].forEach(i=>document.getElementById('star-${id}-'+i)&&(document.getElementById('star-${id}-'+i).style.color=i<=${n}?'#f59e0b':'var(--border)'))" onmouseout="[1,2,3,4,5].forEach(i=>document.getElementById('star-${id}-'+i)&&(document.getElementById('star-${id}-'+i).style.color=i<=${myR}?'#f59e0b':'var(--border)'))">${n<=myR?'★':'☆'}</span>`
+    `<span id="star-${id}-${n}" onclick="rateVideo(${id},${n})" style="cursor:pointer;font-size:24px;color:${n<=myR?'#f59e0b':'var(--border)'};transition:color .2s"
+      onmouseover="hoverStars(${id},${n})"
+      onmouseout="resetStars(${id},${getVideoRating(id)})">${n<=myR?'★':'☆'}</span>`
   ).join('');
 
-  const ratingHtml = `<div style="margin-top:16px;padding-top:14px;border-top:1.5px solid var(--border)">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-      <span style="font-size:13px;font-weight:700">Your Rating:</span>
-      ${stars}
-      ${avgR>0?`<span style="font-size:12px;color:var(--muted);margin-left:4px">Avg: ${avgR}/5</span>`:''}
+  const interactHtml = `<div id="modal-rating-comments" style="margin-top:16px;padding-top:14px;border-top:1.5px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:700;color:var(--text)">Your Rating:</span>
+      <div id="stars-wrap-${id}">${stars}</div>
+      <span id="avg-rating-${id}" style="font-size:12px;color:var(--muted);margin-left:4px"></span>
     </div>
-    <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px">Personal Notes</label>
-    <textarea id="note-area-${id}" rows="3" style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;resize:vertical;outline:none" placeholder="Add notes while watching...">${myNote}</textarea>
-    <button onclick="saveVideoNote(${id})" style="margin-top:7px;background:var(--green);color:#fff;border:none;border-radius:7px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer">💾 Save Note</button>
+    <div style="border-top:1.5px solid var(--border);padding-top:14px">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        💬 Comments <span id="comment-count-${id}" style="font-size:11px;font-weight:400;color:var(--muted)"></span>
+      </div>
+      <div id="comments-list-${id}" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+        <div style="color:var(--muted);font-size:13px">Loading comments…</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:#fff;flex-shrink:0">${(currentUser?.name||'?')[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <textarea id="comment-input-${id}" rows="2"
+            style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;resize:vertical;outline:none;transition:border-color .2s"
+            placeholder="Add a comment…"
+            onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+          <button onclick="postComment(${id})"
+            style="margin-top:6px;background:var(--green);color:#fff;border:none;border-radius:8px;padding:7px 18px;font-family:'Syne',sans-serif;font-size:12px;font-weight:800;cursor:pointer;transition:background .2s"
+            onmouseover="this.style.background='var(--green-dark)'" onmouseout="this.style.background='var(--green)'">Post Comment</button>
+        </div>
+      </div>
+    </div>
   </div>`;
 
-  document.getElementById('modal-attachments').insertAdjacentHTML('afterend', ratingHtml);
+  document.getElementById('modal-attachments').insertAdjacentHTML('afterend', interactHtml);
   document.getElementById('modal').style.display = 'flex';
+
+  // Load comments and avg rating async
+  loadModalComments(id);
+  loadAvgRating(id);
 }
 function closeModal(e) {
   if (!e || e.target===document.getElementById('modal')) {
@@ -4829,16 +5125,196 @@ function checkUserAssignmentNotifs() {
 // ═══════════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════════
-window.onload = () => {
+// ═══════════════════════════════════════════════════════════════
+//  COMMENTS & RATINGS
+// ═══════════════════════════════════════════════════════════════
+
+// Star hover helpers (persistent — onmouseout resets to saved rating)
+function hoverStars(videoId, n) {
+  for (let i=1;i<=5;i++) {
+    const el=document.getElementById(`star-${videoId}-${i}`);
+    if(el) el.style.color = i<=n ? '#f59e0b' : 'var(--border)';
+  }
+}
+function resetStars(videoId, myRating) {
+  for (let i=1;i<=5;i++) {
+    const el=document.getElementById(`star-${videoId}-${i}`);
+    if(el) el.style.color = i<=myRating ? '#f59e0b' : 'var(--border)';
+  }
+}
+
+// Load avg rating from DB and update display
+async function loadAvgRating(videoId) {
+  const rows = await dbGetRatings(videoId) || [];
+  const avgEl = document.getElementById(`avg-rating-${videoId}`);
+  if (!rows.length || !avgEl) return;
+  const avg = (rows.reduce((s,r)=>s+r.stars,0)/rows.length).toFixed(1);
+  const starsDisplay = '★'.repeat(Math.round(avg))+'☆'.repeat(5-Math.round(avg));
+  avgEl.innerHTML = `<span style="color:#f59e0b">${starsDisplay}</span> <span style="color:var(--muted)">${avg} avg (${rows.length} rating${rows.length!==1?'s':''})</span>`;
+}
+
+// Override rateVideo to use dedicated ratings table + update stars persistently
+async function rateVideo(videoId, stars) {
+  if (!_dbUser) return;
+  await dbUpsertRating(_dbUser.id, videoId, stars);
+  // Update local progress cache
+  const p = _dbProgress.find(p=>p.video_id===videoId);
+  if (p) p.rating=stars; else _dbProgress.push({video_id:videoId,rating:stars,user_id:_dbUser.id});
+  // Update star display permanently (not just hover)
+  resetStars(videoId, stars);
+  showToast(`⭐ Rated ${stars}/5 — saved!`);
+  loadAvgRating(videoId);
+}
+
+// Load and render comments for a video
+async function loadModalComments(videoId) {
+  const listEl = document.getElementById(`comments-list-${videoId}`);
+  const countEl = document.getElementById(`comment-count-${videoId}`);
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>';
+  const rows = await dbGetComments(videoId) || [];
+  if (countEl) countEl.textContent = `(${rows.length})`;
+
+  if (!rows.length) {
+    listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No comments yet — be the first!</div>';
+    return;
+  }
+
+  const isAdmin = currentUser?.role === 'admin';
+  listEl.innerHTML = rows.map(c => {
+    const initial = (c.author_name||'?')[0].toUpperCase();
+    const color   = AVATAR_COLORS[c.author_name?.charCodeAt(0)%AVATAR_COLORS.length||0];
+    const roleCls = c.author_role==='admin'?'background:rgba(74,124,63,.12);color:var(--green)':c.author_role==='manager'?'background:rgba(124,58,237,.1);color:#7c3aed':'background:rgba(26,26,26,.07);color:var(--muted)';
+    const starsHtml = c.rating ? `<span class="comment-stars">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</span>` : '';
+    const canDel = isAdmin || c.author_id === _dbUser?.id;
+    const d = new Date(c.created_at);
+    const timeStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' at ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    return `<div class="comment-card">
+      <div class="comment-av" style="background:${color}">${initial}</div>
+      <div class="comment-body">
+        <div class="comment-author">
+          ${c.author_name||'Unknown'}
+          <span class="comment-role" style="${roleCls}">${c.author_role||'member'}</span>
+          ${starsHtml}
+          <span class="comment-time">${timeStr}</span>
+          ${canDel?`<button class="comment-del" onclick="deleteComment('${c.id}','${videoId}')">✕</button>`:''}
+        </div>
+        <div class="comment-text">${c.text.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function postComment(videoId) {
+  if (!_dbUser) return;
+  const inp = document.getElementById(`comment-input-${videoId}`);
+  const text = inp?.value.trim();
+  if (!text) { showToast('⚠ Write something first'); return; }
+  const myRating = getVideoRating(videoId);
+  await dbPostComment({
+    video_id:    videoId,
+    author_id:   _dbUser.id,
+    author_name: currentUser?.name || 'Unknown',
+    author_role: currentUser?.role || 'member',
+    text,
+    rating: myRating || null,
+  });
+  if (inp) inp.value = '';
+  showToast('💬 Comment posted!');
+  loadModalComments(videoId);
+  loadAvgRating(videoId);
+  // Log analytics event for comment
+  logAnalyticsEvent({ type:'comment', videoId, videoTitle: videos.find(v=>v.id===videoId)?.title||'', category: videos.find(v=>v.id===videoId)?.category||'' });
+}
+
+async function deleteComment(commentId, videoId) {
+  if (!confirm('Delete this comment?')) return;
+  await dbDeleteComment(commentId);
+  showToast('🗑 Comment deleted');
+  loadModalComments(videoId);
+}
+
+// ── Analytics: add comments + ratings to the analytics panel ──
+
+// Override renderAnalyticsPanel to append comments/ratings section
+const _origRenderAnalytics = renderAnalyticsPanel;
+function renderAnalyticsPanel() {
+  // Call original first, then append after render
+  const result = _origRenderAnalytics();
+  // Add comment/rating analytics asynchronously
+  setTimeout(async () => {
+    const panel = document.querySelector('.manage-panel.active');
+    if (!panel) return;
+    // Get all comments from DB
+    const comments = await DB.get('mhu_comments','order=created_at.desc&limit=100') || [];
+    const ratings  = await DB.get('mhu_ratings','order=updated_at.desc') || [];
+
+    // Per-video comment/rating summary
+    const videoSummary = {};
+    videos.forEach(v => { videoSummary[v.id] = { title:v.title, comments:0, totalRating:0, ratingCount:0 }; });
+    comments.forEach(c => { if(videoSummary[c.video_id]) videoSummary[c.video_id].comments++; });
+    ratings.forEach(r  => { if(videoSummary[r.video_id]) { videoSummary[r.video_id].totalRating+=r.stars; videoSummary[r.video_id].ratingCount++; }});
+
+    const summaryRows = Object.values(videoSummary)
+      .filter(v=>v.comments>0||v.ratingCount>0)
+      .sort((a,b)=>b.comments-a.comments)
+      .map(v => {
+        const avg = v.ratingCount ? (v.totalRating/v.ratingCount).toFixed(1) : '—';
+        const stars = v.ratingCount ? '★'.repeat(Math.round(v.totalRating/v.ratingCount)) : '';
+        return `<tr>
+          <td><strong>${v.title}</strong></td>
+          <td style="text-align:center;font-weight:700;color:var(--green)">${v.comments}</td>
+          <td style="text-align:center"><span style="color:#f59e0b">${stars}</span> ${avg!=='—'?`<span style="color:var(--muted);font-size:12px">${avg}/5 (${v.ratingCount})</span>`:avg}</td>
+        </tr>`;
+      }).join('');
+
+    const recentComments = comments.slice(0,10).map(c => {
+      const d = new Date(c.created_at);
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:30px;height:30px;border-radius:50%;background:${AVATAR_COLORS[(c.author_name||'').charCodeAt(0)%AVATAR_COLORS.length||0]};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0">${(c.author_name||'?')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:13px">${c.author_name} <span style="font-weight:400;color:var(--muted)">on</span> ${videos.find(v=>v.id===c.video_id)?.title||'Unknown'}</div>
+          <div style="font-size:13px;color:var(--text);margin-top:2px;line-height:1.4">${(c.text||'').slice(0,120)}${(c.text||'').length>120?'…':''}</div>
+          ${c.rating?`<div style="color:#f59e0b;font-size:12px;margin-top:3px">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</div>`:''}
+        </div>
+        <div style="font-size:11px;color:var(--muted);flex-shrink:0;white-space:nowrap">${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+      </div>`;
+    }).join('');
+
+    const commentCard = `
+      <div class="chart-card" style="margin-top:18px">
+        <div class="chart-title">💬 Comments & Ratings by Video</div>
+        <div class="chart-sub">How team members are engaging with each video</div>
+        ${summaryRows ? `<div class="vtable-wrap" style="margin-top:0">
+          <table class="report-table">
+            <thead><tr><th>Video</th><th style="text-align:center">Comments</th><th style="text-align:center">Avg Rating</th></tr></thead>
+            <tbody>${summaryRows}</tbody>
+          </table>
+        </div>` : '<p style="font-size:13px;color:var(--muted)">No comments or ratings yet.</p>'}
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">💬 Recent Comments</div>
+        <div class="chart-sub">Latest team member comments across all videos</div>
+        ${recentComments || '<p style="font-size:13px;color:var(--muted)">No comments yet.</p>'}
+      </div>`;
+
+    panel.insertAdjacentHTML('beforeend', commentCard);
+  }, 100);
+  return result;
+}
+
+window.onload = async () => {
   activeFilter='All'; searchQuery='';
-  seedDemoAnalytics();
-  loadTeamUsers();
   applySettings(loadSettings());
+  initDarkMode();
+  showSyncStatus('Connecting…');
+  _dbUsers = await dbGetUsers() || [];
+  showSyncStatus('');
   const resumed = resumeSession();
   if (resumed) {
-    // Try to find in seed or team
-    const u = SEED_USERS.find(u=>u.id===resumed) || teamUsers.find(u=>u.username===resumed||u.id===resumed);
-    if (u) { doLogin(u.id||u.username); return; }
+    const u = _dbUsers.find(u=>u.username===resumed||u.id===resumed);
+    if (u && !u.inactive) { currentUser=u; _dbUser=u; await doLogin(u.username||u.id); return; }
   }
 };
 </script>
