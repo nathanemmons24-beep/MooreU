@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Moore Holdings University</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -374,7 +377,97 @@
   @keyframes slideDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
   .cat-highlight{animation:catPulse 1.4s ease;border-radius:12px;}
   ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-  @media(max-width:700px){.sidebar{display:none!important}.hero-thumbs{display:none}.hero-title{font-size:22px}.form-grid{grid-template-columns:1fr}.add-cat-row{flex-direction:column}.mob-only{display:flex!important}}
+  @media(max-width:700px){
+    /* Sidebar */
+    .sidebar{display:none!important}
+    .sidebar.mob-open{display:flex!important;position:fixed;top:0;left:0;height:100vh;z-index:160;padding-top:72px;animation:slideDown .25s ease;width:260px;}
+    .mob-only{display:flex!important}
+
+    /* Topbar */
+    .topbar{padding:0 12px;gap:8px;}
+    .topbar-logo{font-size:13px;}
+    .topbar-div{display:none;}
+    .search-wrap{max-width:none;flex:1;}
+    .session-timer{display:none!important;}
+    #user-name-display{display:none;}
+    .preview-btns{gap:4px;}
+    .preview-role-btn{padding:4px 8px;font-size:11px;}
+    .unsaved-pill{display:none!important;}
+    .save-tb-btn{padding:6px 10px;font-size:12px;}
+    .dark-toggle,.notif-btn{width:30px;height:30px;font-size:14px;}
+
+    /* Layout */
+    .layout{flex-direction:column;}
+    main{overflow-x:hidden;}
+
+    /* Hero */
+    .hero-thumbs{display:none;}
+    .hero-text{padding:24px 20px;}
+    .hero-title{font-size:20px;}
+    .hero-desc{font-size:13px;}
+    .hero-inner{min-height:240px;}
+
+    /* Library */
+    .lib-body{padding:16px;}
+    .filter-row{gap:6px;}
+    .filter-btn{padding:5px 10px;font-size:12px;}
+    .video-grid{grid-template-columns:1fr 1fr;gap:10px;}
+    .strip-section{padding:0 16px 6px;}
+    .strip-card{width:160px;}
+    .assets-grid{grid-template-columns:1fr 1fr;}
+
+    /* Cards */
+    .task-card{flex-direction:column;gap:10px;}
+    .task-actions{flex-direction:row;align-items:center;width:100%;}
+    .tasks-stats-row{grid-template-columns:repeat(2,1fr);}
+    .analytics-grid{grid-template-columns:repeat(2,1fr);}
+    .analytics-two-col{grid-template-columns:1fr;}
+    .stat-card{padding:14px;}
+    .stat-card-value{font-size:22px;}
+
+    /* Manage / Forms */
+    .manage-wrap{padding:16px;}
+    .form-grid{grid-template-columns:1fr;}
+    .manage-tabs{flex-wrap:wrap;}
+    .manage-tab{padding:7px 10px;font-size:11px;}
+    .add-cat-row{flex-direction:column;}
+    .vtable-wrap{overflow-x:auto;}
+    .vtable{min-width:500px;}
+    .acard{padding:16px;}
+    .team-grid{grid-template-columns:1fr;}
+    .cat-grid{grid-template-columns:1fr;}
+
+    /* Modals */
+    .modal{border-radius:12px 12px 0 0;position:fixed;bottom:0;left:0;right:0;max-height:92vh;max-width:100%;margin:0;}
+    .modal-overlay{align-items:flex-end;padding:0;}
+    .assign-modal,.edit-modal,.profile-modal{border-radius:16px 16px 0 0;max-height:90vh;position:fixed;bottom:0;left:0;right:0;width:100%!important;max-width:100%!important;margin:0;}
+    .assign-overlay,.edit-overlay,.profile-overlay{align-items:flex-end;padding:0;}
+    .asset-preview-modal{border-radius:16px 16px 0 0;position:fixed;bottom:0;left:0;right:0;max-height:92vh;max-width:100%;}
+    .asset-preview-overlay{align-items:flex-end;padding:0;}
+
+    /* Profile */
+    .profile-stat-row{grid-template-columns:repeat(3,1fr);}
+    .profile-tabs{overflow-x:auto;}
+    .profile-tab{font-size:11px;padding:10px 8px;}
+
+    /* Notif panel */
+    .notif-panel{width:calc(100vw - 16px);right:8px;top:68px;}
+
+    /* Bulk bar */
+    .bulk-bar{min-width:0;width:calc(100vw - 32px);flex-wrap:wrap;gap:8px;padding:12px;}
+
+    /* Preview bar */
+    .preview-bar{padding:8px 14px;font-size:12px;}
+    .preview-bar-label span:last-of-type{display:none;}
+  }
+
+  @media(max-width:400px){
+    .video-grid{grid-template-columns:1fr;}
+    .assets-grid{grid-template-columns:1fr;}
+    .profile-stat-row{grid-template-columns:repeat(3,1fr);}
+    .hero-title{font-size:18px;}
+    .topbar-logo{display:none;}
+  }
 
   /* ── DARK MODE ── */
   body.dark{--bg:#0f1117;--surface:#1a1d28;--border:#2a2e3d;--text:#e8eaf0;--muted:#6b7585;--white:#1a1d28;--green-bg:rgba(74,124,63,.12);--near-black:#0d0f18;}
@@ -395,7 +488,6 @@
   .mob-only{display:none;background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:6px;flex-shrink:0;}
   .mob-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:150;}
   .mob-sidebar-overlay.on{display:block;}
-  .sidebar.mob-open{display:flex!important;position:fixed;top:0;left:0;height:100vh;z-index:160;padding-top:80px;animation:slideDown .25s ease;}
 
   /* ── ANNOUNCEMENTS ── */
   .announcement-bar{display:none;align-items:center;gap:12px;padding:12px 24px;background:linear-gradient(90deg,#1b4f72,#2980b9);color:#fff;position:relative;flex-wrap:wrap;animation:slideDown .3s ease;}
@@ -989,14 +1081,32 @@ async function syncFromDB(){
         videoTitle:videos.find(v=>v.id===a.video_id)?.title||'Unknown',
         assignedBy:a.assigned_by,due:a.due_date||'',notes:a.notes||''
       }));
-      const aRows=await dbGetAnalytics(90)||[];
-      _cachedAnalytics=aRows.map(r=>({type:r.event_type,userId:r.user_id,userName:r.user_name,role:r.role,videoId:r.video_id,videoTitle:r.video_title,category:r.category,durationSecs:r.duration_secs,fileName:r.file_name,ts:new Date(r.created_at).getTime()}));
     }
+
+    // Always load analytics for all users (needed for the analytics panel)
+    try {
+      const aRows = await dbGetAnalytics(90) || [];
+      _cachedAnalytics = aRows.map(r=>({
+        type:r.event_type, userId:r.user_id, userName:r.user_name,
+        role:r.role, videoId:r.video_id, videoTitle:r.video_title,
+        category:r.category, durationSecs:r.duration_secs,
+        fileName:r.file_name, ts:new Date(r.created_at).getTime()
+      }));
+    } catch(e) { _cachedAnalytics = []; }
 
     // Visibility
     const visRows=await dbGetVis()||[];
     const visObj={};visRows.forEach(r=>{visObj[`${r.role}__${r.cat_name}`]=r.visible;});
     localStorage.setItem(VISIBILITY_KEY,JSON.stringify(visObj));
+
+    // Load all ratings for video cards display
+    const allRatings = await DB.get('mhu_ratings','') || [];
+    allRatings.forEach(r => {
+      if (!_ratingCache[r.video_id]) _ratingCache[r.video_id] = { sum:0, count:0, avg:0 };
+      _ratingCache[r.video_id].sum   = (_ratingCache[r.video_id].sum||0) + r.stars;
+      _ratingCache[r.video_id].count = (_ratingCache[r.video_id].count||0) + 1;
+      _ratingCache[r.video_id].avg   = _ratingCache[r.video_id].sum / _ratingCache[r.video_id].count;
+    });
 
     showSyncStatus('');return true;
   }catch(e){console.error('Sync error',e);showSyncStatus('⚠ Offline mode');return false;}
@@ -1007,6 +1117,75 @@ async function syncFromDB(){
 function allUsers(){return _dbUsers;}
 function getAssignments(){return _cachedAssignments;}
 function getAnalyticsEvents(){return _cachedAnalytics;}
+
+// Seed demo analytics into Supabase (run once to populate charts)
+async function seedAnalyticsToDB() {
+  if (!_dbUser) return;
+  showToast('⏳ Seeding demo analytics…');
+  const now   = Date.now();
+  const day   = 86400000;
+  const users = _dbUsers.filter(u=>!u.inactive);
+  const vids  = videos.filter(v=>!isExpired(v));
+  if (!vids.length) { showToast('⚠ Add some videos first'); return; }
+
+  const events = [];
+  users.forEach(u => {
+    const viewCount = 8 + Math.floor(Math.random()*12);
+    for (let i=0;i<viewCount;i++) {
+      const v       = vids[Math.floor(Math.random()*vids.length)];
+      const daysAgo = Math.floor(Math.random()*30);
+      events.push({
+        event_type:'view', user_id:u.id, user_name:u.name, role:u.role,
+        video_id:v.id, video_title:v.title, category:v.category,
+        duration_secs:Math.floor(parseDuration(v.duration)*(0.5+Math.random()*0.5)),
+        file_name:'',
+        created_at: new Date(now - daysAgo*day - Math.floor(Math.random()*day)).toISOString()
+      });
+    }
+    // A few downloads
+    const dlCount = Math.floor(Math.random()*3);
+    for (let i=0;i<dlCount;i++) {
+      const v = vids[Math.floor(Math.random()*vids.length)];
+      const daysAgo = Math.floor(Math.random()*30);
+      events.push({
+        event_type:'download', user_id:u.id, user_name:u.name, role:u.role,
+        video_id:v.id, video_title:v.title, category:v.category,
+        duration_secs:0, file_name:'Training Materials.pdf',
+        created_at: new Date(now - daysAgo*day - Math.floor(Math.random()*day)).toISOString()
+      });
+    }
+  });
+
+  // Insert in batches
+  for (const e of events) { await dbLogEvent(e); }
+
+  // Reload analytics
+  const aRows = await dbGetAnalytics(90) || [];
+  _cachedAnalytics = aRows.map(r=>({
+    type:r.event_type, userId:r.user_id, userName:r.user_name,
+    role:r.role, videoId:r.video_id, videoTitle:r.video_title,
+    category:r.category, durationSecs:r.duration_secs,
+    fileName:r.file_name, ts:new Date(r.created_at).getTime()
+  }));
+
+  showToast(`✅ Seeded ${events.length} analytics events!`);
+  renderManage();
+}
+
+async function refreshAnalytics() {
+  showSyncStatus('Refreshing analytics…');
+  try {
+    const aRows = await dbGetAnalytics(analyticsRange) || [];
+    _cachedAnalytics = aRows.map(r=>({
+      type:r.event_type, userId:r.user_id, userName:r.user_name,
+      role:r.role, videoId:r.video_id, videoTitle:r.video_title,
+      category:r.category, durationSecs:r.duration_secs,
+      fileName:r.file_name, ts:new Date(r.created_at).getTime()
+    }));
+  } catch(e) {}
+  showSyncStatus('');
+  renderManage();
+}
 
 function findUser(loginStr,pass){
   const ls=loginStr.toLowerCase().trim();
@@ -1243,9 +1422,7 @@ function logAnalyticsEvent(event) {
   } catch(e) {}
 }
 
-function getAnalyticsEvents() {
-  try { return JSON.parse(localStorage.getItem(ANALYTICS_KEY) || '[]'); } catch(e) { return []; }
-}
+// getAnalyticsEvents() is defined in the Supabase layer above — returns _cachedAnalytics
 
 const DEFAULT_CATS = {
   'New Hire Training':     { icon:'🚀', color:'#4a7c3f', bg:'rgba(74,124,63,.12)',  gradient:'#1a2e18,#0f1f0d' },
@@ -2696,6 +2873,7 @@ function videoCard(v, m) {
       ${tagsHTML}
       <div class="vmeta" style="margin-top:8px">
         <span class="tag" style="background:${m.bg};color:${m.color}">${m.icon} ${v.category}</span>
+        ${_ratingCache[v.id]?.count ? `<span style="color:#f59e0b;font-size:12px">★${_ratingCache[v.id].avg.toFixed(1)}</span>` : ''}
         <span class="vdur">${v.duration}</span>
       </div>
     </div>
@@ -2815,17 +2993,23 @@ function openModal(id) {
     </div>
   </div>`;
 
+  // Clean up any previous interaction section before adding new one
+  document.getElementById('modal-rating-comments')?.remove();
+
   document.getElementById('modal-attachments').insertAdjacentHTML('afterend', interactHtml);
   document.getElementById('modal').style.display = 'flex';
 
   // Load comments and avg rating async
-  loadModalComments(id);
-  loadAvgRating(id);
+  setTimeout(() => {
+    loadModalComments(id);
+    loadAvgRating(id);
+  }, 100);
 }
 function closeModal(e) {
   if (!e || e.target===document.getElementById('modal')) {
     document.getElementById('modal').style.display = 'none';
     document.getElementById('modal-video-area').innerHTML = '';
+    document.getElementById('modal-rating-comments')?.remove();
   }
 }
 
@@ -2833,19 +3017,19 @@ function closeModal(e) {
 //  MANAGE PAGE
 // ═══════════════════════════════════════════════════════════════
 function renderManage() {
-  const role = currentUser?.role;
-  // Hard guard — only admin and manager can access this page
-  if (role !== 'admin' && role !== 'manager') {
-    renderHome(); return;
-  }
+  const realRole = currentUser?.role;
+  // Hard guard — only real admin and manager can access this page (preview can't)
+  if (previewRole) { renderHome(); return; }
+  if (realRole !== 'admin' && realRole !== 'manager') { renderHome(); return; }
+
   renderSidebar(); refreshDirtyUI();
-  const saveBanner = (dirty && role === 'admin') ? `<div class="save-banner">
+  const saveBanner = (dirty && realRole === 'admin') ? `<div class="save-banner">
     <div class="save-banner-text">⚠ You have unsaved changes. <em>They will be lost on refresh unless you save.</em></div>
     <button class="btn-discard" onclick="discardChanges()">↩ Discard</button>
     <button class="btn-save" onclick="saveData()">💾 Save Changes</button>
   </div>` : '';
-  const isAdmin   = role === 'admin';
-  const isManager = role === 'manager';
+  const isAdmin   = realRole === 'admin';
+  const isManager = realRole === 'manager';
 
   // Managers only see the Team tab in settings; admins see all tabs
   const tabs = isAdmin
@@ -5160,13 +5344,30 @@ function resetStars(videoId, myRating) {
 }
 
 // Load avg rating from DB and update display
+// Cache of avg ratings keyed by videoId for use on video cards
+const _ratingCache = {};
+
 async function loadAvgRating(videoId) {
-  const rows = await dbGetRatings(videoId) || [];
   const avgEl = document.getElementById(`avg-rating-${videoId}`);
-  if (!rows.length || !avgEl) return;
-  const avg = (rows.reduce((s,r)=>s+r.stars,0)/rows.length).toFixed(1);
-  const starsDisplay = '★'.repeat(Math.round(avg))+'☆'.repeat(5-Math.round(avg));
-  avgEl.innerHTML = `<span style="color:#f59e0b">${starsDisplay}</span> <span style="color:var(--muted)">${avg} avg (${rows.length} rating${rows.length!==1?'s':''})</span>`;
+  try {
+    const rows = await dbGetRatings(videoId) || [];
+    if (!rows.length) {
+      if (avgEl) avgEl.textContent = 'No ratings yet';
+      return;
+    }
+    const avg = rows.reduce((s,r)=>s+r.stars,0) / rows.length;
+    const avgFixed = avg.toFixed(1);
+    _ratingCache[videoId] = { avg, count: rows.length };
+
+    const filled  = Math.round(avg);
+    const starsDisplay = '★'.repeat(filled) + '☆'.repeat(5-filled);
+    if (avgEl) {
+      avgEl.innerHTML = `<span style="color:#f59e0b;font-size:14px">${starsDisplay}</span>
+        <span style="color:var(--muted);font-size:12px">${avgFixed} (${rows.length} rating${rows.length!==1?'s':''})</span>`;
+    }
+  } catch(e) {
+    if (avgEl) avgEl.textContent = '';
+  }
 }
 
 // Override rateVideo to use dedicated ratings table + update stars persistently
@@ -5184,71 +5385,116 @@ async function rateVideo(videoId, stars) {
 
 // Load and render comments for a video
 async function loadModalComments(videoId) {
-  const listEl = document.getElementById(`comments-list-${videoId}`);
+  const listEl  = document.getElementById(`comments-list-${videoId}`);
   const countEl = document.getElementById(`comment-count-${videoId}`);
   if (!listEl) return;
 
   listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Loading…</div>';
-  const rows = await dbGetComments(videoId) || [];
-  if (countEl) countEl.textContent = `(${rows.length})`;
 
-  if (!rows.length) {
-    listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No comments yet — be the first!</div>';
-    return;
-  }
+  try {
+    const rows = await dbGetComments(videoId);
 
-  const isAdmin = currentUser?.role === 'admin';
-  listEl.innerHTML = rows.map(c => {
-    const initial = (c.author_name||'?')[0].toUpperCase();
-    const color   = AVATAR_COLORS[c.author_name?.charCodeAt(0)%AVATAR_COLORS.length||0];
-    const roleCls = c.author_role==='admin'?'background:rgba(74,124,63,.12);color:var(--green)':c.author_role==='manager'?'background:rgba(124,58,237,.1);color:#7c3aed':'background:rgba(26,26,26,.07);color:var(--muted)';
-    const starsHtml = c.rating ? `<span class="comment-stars">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</span>` : '';
-    const canDel = isAdmin || c.author_id === _dbUser?.id;
-    const d = new Date(c.created_at);
-    const timeStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' at ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-    return `<div class="comment-card">
-      <div class="comment-av" style="background:${color}">${initial}</div>
-      <div class="comment-body">
-        <div class="comment-author">
-          ${c.author_name||'Unknown'}
-          <span class="comment-role" style="${roleCls}">${c.author_role||'member'}</span>
-          ${starsHtml}
-          <span class="comment-time">${timeStr}</span>
-          ${canDel?`<button class="comment-del" onclick="deleteComment('${c.id}','${videoId}')">✕</button>`:''}
+    if (rows === null) {
+      // null means table doesn't exist yet — show helpful message
+      listEl.innerHTML = `<div style="background:var(--amber-bg);border:1.5px solid var(--amber-border);border-radius:9px;padding:12px 14px;font-size:13px;color:var(--amber)">
+        ⚠ Comments table not set up yet. Run the <strong>mooreu-schema.sql</strong> in Supabase SQL Editor to enable comments.
+      </div>`;
+      return;
+    }
+
+    if (countEl) countEl.textContent = rows.length ? `(${rows.length})` : '';
+
+    if (!rows.length) {
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">No comments yet — be the first!</div>';
+      return;
+    }
+
+    const isAdminUser = currentUser?.role === 'admin';
+    listEl.innerHTML = rows.map(c => {
+      const initial  = (c.author_name||'?')[0].toUpperCase();
+      const color    = AVATAR_COLORS[(c.author_name||'').charCodeAt(0)%AVATAR_COLORS.length||0];
+      const roleCls  = c.author_role==='admin'
+        ? 'background:rgba(74,124,63,.12);color:var(--green)'
+        : c.author_role==='manager'
+        ? 'background:rgba(124,58,237,.1);color:#7c3aed'
+        : 'background:rgba(26,26,26,.07);color:var(--muted)';
+      const starsHtml = c.rating
+        ? `<span style="color:#f59e0b;font-size:13px;letter-spacing:1px">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</span>`
+        : '';
+      const canDel = isAdminUser || c.author_id === _dbUser?.id;
+      const d = new Date(c.created_at);
+      const timeStr = d.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' · ' + d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const safeText = (c.text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      return `<div class="comment-card">
+        <div class="comment-av" style="background:${color}">${initial}</div>
+        <div class="comment-body">
+          <div class="comment-author">
+            <strong>${c.author_name||'Unknown'}</strong>
+            <span class="comment-role" style="${roleCls}">${c.author_role||'member'}</span>
+            ${starsHtml}
+            <span class="comment-time">${timeStr}</span>
+            ${canDel ? `<button class="comment-del" onclick="deleteComment('${c.id}','${videoId}')" title="Delete">✕</button>` : ''}
+          </div>
+          <div class="comment-text">${safeText}</div>
         </div>
-        <div class="comment-text">${c.text.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
-      </div>
-    </div>`;
-  }).join('');
+      </div>`;
+    }).join('');
+
+  } catch(e) {
+    console.error('loadModalComments error:', e);
+    listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0">Could not load comments.</div>';
+  }
 }
 
 async function postComment(videoId) {
-  if (!_dbUser) return;
-  const inp = document.getElementById(`comment-input-${videoId}`);
+  if (!_dbUser) { showToast('⚠ Not logged in'); return; }
+  const inp  = document.getElementById(`comment-input-${videoId}`);
   const text = inp?.value.trim();
   if (!text) { showToast('⚠ Write something first'); return; }
-  const myRating = getVideoRating(videoId);
-  await dbPostComment({
-    video_id:    videoId,
-    author_id:   _dbUser.id,
-    author_name: currentUser?.name || 'Unknown',
-    author_role: currentUser?.role || 'member',
-    text,
-    rating: myRating || null,
-  });
-  if (inp) inp.value = '';
-  showToast('💬 Comment posted!');
-  loadModalComments(videoId);
-  loadAvgRating(videoId);
-  // Log analytics event for comment
-  logAnalyticsEvent({ type:'comment', videoId, videoTitle: videos.find(v=>v.id===videoId)?.title||'', category: videos.find(v=>v.id===videoId)?.category||'' });
+
+  // Disable button while posting
+  const btn = inp?.parentElement?.querySelector('button');
+  if (btn) { btn.disabled=true; btn.textContent='Posting…'; }
+
+  try {
+    const myRating = getVideoRating(videoId);
+    const result = await dbPostComment({
+      video_id:    videoId,
+      author_id:   _dbUser.id,
+      author_name: currentUser?.name || 'Unknown',
+      author_role: currentUser?.role || 'member',
+      text,
+      rating:      myRating || null,
+    });
+
+    if (result === null) {
+      showToast('⚠ Comments table not set up — run schema in Supabase');
+      return;
+    }
+
+    if (inp) inp.value = '';
+    showToast('💬 Comment posted!');
+    await loadModalComments(videoId);
+    loadAvgRating(videoId);
+
+  } catch(e) {
+    console.error('postComment error:', e);
+    showToast('⚠ Failed to post comment');
+  } finally {
+    if (btn) { btn.disabled=false; btn.textContent='Post Comment'; }
+  }
 }
 
 async function deleteComment(commentId, videoId) {
   if (!confirm('Delete this comment?')) return;
-  await dbDeleteComment(commentId);
-  showToast('🗑 Comment deleted');
-  loadModalComments(videoId);
+  try {
+    await dbDeleteComment(commentId);
+    showToast('🗑 Comment deleted');
+    await loadModalComments(videoId);
+    loadAvgRating(videoId);
+  } catch(e) {
+    showToast('⚠ Could not delete comment');
+  }
 }
 
 // ── Analytics: add comments + ratings to the analytics panel ──
