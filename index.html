@@ -163,6 +163,17 @@
   .modal-close{margin-left:auto;background:none;border:1.5px solid var(--border);color:var(--muted);padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;font-family:'DM Sans',sans-serif;transition:all .2s;}
   .modal-close:hover{color:var(--black);border-color:#999;}
 
+  /* Floating X on modal — always visible, works great on mobile */
+  .modal-float-close{position:sticky;top:0;float:right;margin:10px 10px -38px auto;width:36px;height:36px;background:rgba(0,0,0,.65);border:none;color:#fff;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .2s;backdrop-filter:blur(4px);flex-shrink:0;}
+  .modal-float-close:hover{background:rgba(0,0,0,.85);}
+
+  /* ── CAROUSEL ARROWS ── */
+  .cat-section{position:relative;}
+  .carousel-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:10;width:36px;height:36px;background:var(--white);border:1.5px solid var(--border);border-radius:50%;font-size:16px;cursor:pointer;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.12);transition:all .2s;color:var(--text);}
+  .carousel-btn:hover{background:var(--green);border-color:var(--green);color:#fff;}
+  .carousel-btn.prev{left:-10px;}
+  .carousel-btn.next{right:-10px;}
+
   /* ATTACHMENTS in modal */
   .attach-section{margin-top:20px;padding-top:18px;border-top:1.5px solid var(--border);}
   .attach-section-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--black);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
@@ -390,7 +401,14 @@
   @media(max-width:700px){
     /* ── Layout ── */
     .sidebar{display:none!important}
-    .sidebar.mob-open{display:flex!important;position:fixed;top:0;left:0;height:100vh;z-index:160;padding-top:64px;animation:slideDown .25s ease;width:72vw;max-width:280px;box-shadow:6px 0 24px rgba(0,0,0,.25);}
+    .sidebar.mob-open{display:flex!important;position:fixed;top:0;left:0;height:100vh;z-index:160;padding-top:64px;animation:slideDown .25s ease;width:72vw;max-width:280px;box-shadow:6px 0 24px rgba(0,0,0,.25);background:var(--near-black)!important;}
+    .mob-open .sb-label{font-size:10px;letter-spacing:.12em;padding:18px 20px 6px;color:rgba(255,255,255,.35);font-weight:800;}
+    .mob-open .nav-item{font-size:15px;font-weight:600;padding:13px 20px;color:rgba(255,255,255,.75);border-left:3px solid transparent;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.05);}
+    .mob-open .nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+    .mob-open .nav-item.active{color:var(--green-light);border-left-color:var(--green-light);background:rgba(74,124,63,.15);}
+    .mob-open .nav-div{border-color:rgba(255,255,255,.08);margin:4px 0;}
+    .mob-open .cat-nav-item{font-size:14px;padding:10px 20px 10px 24px;color:rgba(255,255,255,.6);cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;}
+    .mob-open .cat-nav-item:hover{color:#fff;background:rgba(255,255,255,.04);}
     .mob-only{display:flex!important}
     .layout{flex-direction:column;}
     main{overflow-x:hidden;min-height:0;}
@@ -424,14 +442,14 @@
     .filter-btn{padding:7px 14px;font-size:13px;white-space:nowrap;flex-shrink:0;}
     .section-title{font-size:15px;margin:18px 0 10px;}
 
-    /* ── Video Grid — single column on mobile for full impact ── */
+    /* ── Video Grid — horizontal carousel on mobile ── */
     .video-grid{grid-template-columns:1fr;gap:14px;}
-    .video-card{border-radius:14px;}
-    .vthumb{aspect-ratio:16/9;}
-    .vtitle{font-size:15px;}
-    .vinfo{padding:14px 14px 15px;}
-    .play-btn{width:52px;height:52px;}
-    .ptri{border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:16px solid var(--green);margin-left:3px;}
+    .video-grid{display:flex!important;flex-direction:row!important;overflow-x:auto!important;overflow-y:visible!important;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px;}
+    .video-grid::-webkit-scrollbar{display:none;}
+    .video-grid .video-card{min-width:78vw;max-width:78vw;flex-shrink:0;scroll-snap-align:start;}
+    .carousel-btn{display:flex;}
+    .carousel-btn.prev{left:-6px;}
+    .carousel-btn.next{right:-6px;}
 
     /* ── Strips ── */
     .strip-section{padding:0 14px 4px;}
@@ -887,6 +905,7 @@
   <!-- MODAL -->
   <div class="modal-overlay" id="modal" style="display:none" onclick="closeModal(event)">
     <div class="modal">
+      <button class="modal-float-close" onclick="closeModal()" aria-label="Close video">✕</button>
       <div class="modal-video" id="modal-video-area"></div>
       <div class="modal-body">
         <div class="modal-title" id="modal-title"></div>
@@ -998,9 +1017,9 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  SUPABASE CONFIG
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 const SUPA_URL = 'https://cyfyjshzyeaoogqgrkqr.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Znlqc2h6eWVhb29ncWdya3FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NzQ1MzUsImV4cCI6MjA5MzA1MDUzNX0.eAbZiMNdrobugFhyXsVdvedymj39InhyaePuYJGyMFk';
 
@@ -1415,9 +1434,9 @@ async function submitAssignment(){
   showToast(`✅ Assigned to ${sel.length} user${sel.length!==1?'s':''}`);renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  CONSTANTS
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 const STORAGE_KEY  = 'mhu_v4';
 const SESSION_KEY  = 'mhu_session';
 const LOG_KEY      = 'mhu_login_log';
@@ -1530,9 +1549,9 @@ const EMOJI_OPTIONS = ['🚀','🕐','🏆','📋','💡','🛡️','💻','🤝
 const FEATURED_IDS = [1, 5, 8];
 const AVATAR_COLORS = ['#4a7c3f','#1a5276','#6d4c41','#4a235a','#784212','#1b4f72','#145a32','#c0392b'];
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  STATE
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 let cats           = {};
 let videos         = [];
 let teamUsers      = [];       // managed users array
@@ -1570,9 +1589,9 @@ let bookmarkIds    = new Set();   // video IDs the current user has bookmarked
 let recentIds      = [];          // ordered list of recently viewed video IDs
 let dismissedAnnouncements = new Set(); // dismissed announcement IDs
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  TEAM USERS PERSISTENCE
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function loadTeamUsers() {
   try {
     const raw = localStorage.getItem(USERS_KEY);
@@ -1603,9 +1622,9 @@ function allUsers() {
   return _dbUsers;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  DATA PERSISTENCE — handled by Supabase (see saveData above)
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 
 // loadData is replaced by syncFromDB — this is a no-op fallback
 function loadData() {
@@ -1643,9 +1662,9 @@ function discardChanges() {
 
 
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  SESSION
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function saveSession(userId) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ userId, expires: Date.now() + SESSION_TTL }));
 }
@@ -1684,9 +1703,9 @@ function resetActivityTimer() {
   }, SESSION_TTL);
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  LOGIN LOG
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function recordLogin(user) {
   let log = [];
   try { log = JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch(e) {}
@@ -1697,9 +1716,9 @@ function recordLogin(user) {
 function getLoginLog() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch(e) { return []; } }
 function clearLoginLog() { if (!confirm('Clear login history?')) return; localStorage.removeItem(LOG_KEY); renderManage(); showToast('🗑 Login history cleared'); }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  SETTINGS
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function loadSettings() { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch(e) { return {}; } }
 
 function applySettings(s) {
@@ -2231,9 +2250,9 @@ function hexAlpha(hex, a) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  IMAGE COMPRESSION
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function compressImage(file, maxW, maxH, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -2256,9 +2275,9 @@ function compressImage(file, maxW, maxH, quality) {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  FILE ATTACHMENTS
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function fileIcon(type, name) {
   if (!type && name) type = name.split('.').pop().toLowerCase();
   if (!type) return '📄';
@@ -2384,9 +2403,9 @@ function triggerAssetDownload() {
   if (_apVideoId !== null && _apFileIdx !== null) downloadFile(_apVideoId, _apFileIdx);
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  TOAST
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
@@ -2395,9 +2414,9 @@ function showToast(msg) {
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  AUTH
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 async function doLogin(resumeId) {
   let user;
   if (resumeId) {
@@ -2482,9 +2501,9 @@ function doLogout(forced) {
   if (document.getElementById('login-pass')) document.getElementById('login-pass').value = '';
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  HELPERS
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function getDayIndex() {
   const n = new Date();
   return Math.floor((n - new Date(n.getFullYear(),0,0)) / 86400000) % FEATURED_IDS.length;
@@ -2499,9 +2518,9 @@ function ytID(url) {
 function ytThumb(url) { const id=ytID(url); return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null; }
 function bestThumb(v) { return v.thumb || ytThumb(v.url); }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  NAV
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function showPage(pg) {
   const role = currentUser?.role;
   if (pg === 'manage'  && (previewRole || (role !== 'admin' && role !== 'manager'))) pg = 'home';
@@ -2552,9 +2571,9 @@ function exitPreview() {
   showPage('home');
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  SIDEBAR
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function renderSidebar() {
   refreshNavManage();
   const role = effectiveRole();
@@ -2691,9 +2710,9 @@ function renderHero() {
 }
 function setHighlight(i) { activeHighlight=i; renderHome(); }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  HOME
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function renderHome() {
   renderSidebar();
   const role = effectiveRole();
@@ -2759,13 +2778,18 @@ function renderHome() {
     filtered.forEach(v => { if (!byCat[v.category]) byCat[v.category]=[]; byCat[v.category].push(v); });
     html = Object.entries(byCat).map(([cat, vids]) => {
       const m = cats[cat]||{icon:'📁',color:'#4a7c3f',bg:'rgba(74,124,63,.12)',gradient:'#1a2e18,#0f1f0d'};
+      const catId = 'grid-' + cat.replace(/[^a-zA-Z0-9]/g,'-');
       return `<div class="cat-section" id="cat-sec-${cat.replace(/[^a-zA-Z0-9]/g,'-')}">
         <div class="sec-header">
           <div class="sec-icon" style="background:${m.bg};color:${m.color}">${m.icon}</div>
           <div class="sec-name">${cat}</div>
           <div class="sec-count">${vids.length} resource${vids.length!==1?'s':''}</div>
         </div>
-        <div class="video-grid">${vids.map(v=>videoCard(v,m)).join('')}</div>
+        <div style="position:relative">
+          <button class="carousel-btn prev" id="${catId}-prev" onclick="carouselScroll('${catId}',-1)" aria-label="Previous">‹</button>
+          <div class="video-grid" id="${catId}" style="scroll-behavior:smooth">${vids.map(v=>videoCard(v,m)).join('')}</div>
+          <button class="carousel-btn next" id="${catId}-next" onclick="carouselScroll('${catId}',1)" aria-label="Next">›</button>
+        </div>
       </div>`;
     }).join('');
   }
@@ -2834,9 +2858,44 @@ function renderHome() {
     recentStrip +
     bookmarkStrip +
     `<div class="lib-body"><div class="filter-row">${filterBtns}</div>${html}${assetsSection}</div>`;
+
+  // Set up carousel scroll listeners after render
+  setTimeout(() => {
+    updateCarouselArrows();
+    document.querySelectorAll('.video-grid').forEach(grid => {
+      grid.addEventListener('scroll', updateCarouselArrows, { passive:true });
+    });
+  }, 50);
 }
 
-function buildFilterBtns(vcats, assetCount) {
+function carouselScroll(gridId, dir) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  // On mobile use horizontal scroll, on desktop do nothing (grid wraps naturally)
+  if (window.innerWidth <= 700) {
+    const cardW = grid.querySelector('.video-card')?.offsetWidth || 280;
+    grid.scrollBy({ left: dir * (cardW + 14), behavior: 'smooth' });
+  }
+}
+
+// Show/hide carousel arrows based on scroll position and screen size
+function updateCarouselArrows() {
+  if (window.innerWidth > 700) {
+    document.querySelectorAll('.carousel-btn').forEach(b=>b.style.display='none');
+    return;
+  }
+  document.querySelectorAll('.video-grid').forEach(grid => {
+    const id = grid.id;
+    if (!id) return;
+    const prev = document.getElementById(id+'-prev');
+    const next = document.getElementById(id+'-next');
+    if (!prev||!next) return;
+    const canScrollL = grid.scrollLeft > 10;
+    const canScrollR = grid.scrollLeft < (grid.scrollWidth - grid.clientWidth - 10);
+    prev.style.display = canScrollL ? 'flex' : 'none';
+    next.style.display  = canScrollR && grid.scrollWidth > grid.clientWidth ? 'flex' : 'none';
+  });
+}
   const allAssets = assetCount > 0;
   return ['All', ...vcats].map(c =>
     `<button class="filter-btn ${activeFilter===c?'active':''}" onclick="setFilter('${c}')">${c==='All'?'📋 All':(cats[c]?.icon||'')+' '+c}</button>`
@@ -2927,9 +2986,9 @@ function videoCard(v, m) {
   </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  MODAL
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function openModal(id) {
   // Find video — handle both UUID strings and legacy integer IDs
   const v = videos.find(x => x.id === id || x.id === String(id) || String(x.id) === String(id));
@@ -3063,9 +3122,9 @@ function closeModal(e) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  MANAGE PAGE
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function renderManage() {
   const realRole = currentUser?.role;
   // Hard guard — only real admin and manager can access this page (preview can't)
@@ -3123,9 +3182,9 @@ function switchTab(t) {
   if (t === 'analytics') { refreshAnalytics(); } else { renderManage(); }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  VIDEOS PANEL
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function renderVideosPanel() {
   const catOpts = Object.keys(cats).map(c=>`<option>${c}</option>`).join('');
   const activeVideos = videos.filter(v => !v.archived);
@@ -3564,9 +3623,9 @@ function saveEdit() {
   renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  BULK SELECTION
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function toggleSelect(id, checked) {
   checked ? selectedIds.add(id) : selectedIds.delete(id);
   updateBulkBar();
@@ -3603,9 +3662,9 @@ function bulkMove() {
   showToast(`✅ Moved — saving…`); renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  CATEGORIES PANEL
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function renderCatsPanel() {
   const catList=Object.keys(cats).filter(c=>!cats[c]?.archived);
   const catCards=catList.map(c => {
@@ -4006,9 +4065,9 @@ function renderSettingsPanel() {
 
 // toggleVisibility is defined in the Supabase layer above (uses dbSetVis)
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  ANALYTICS PANEL
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 
 function renderAnalyticsPanel() {
   const events  = getAnalyticsEvents();
@@ -4512,6 +4571,7 @@ function _initAnalyticsCharts() {
       drawLineChart('chart-hrs','tip-hrs', raw.dayLabels, raw.hrsByDay, purple, 'min');
     };
     window.addEventListener('resize', window._analyticsResizeFn);
+  window.addEventListener('resize', updateCarouselArrows);
 }
 
 function setAnalyticsRange(days) { analyticsRange=days; refreshAnalytics(); }
@@ -4678,9 +4738,9 @@ function clearAnnouncement() {
   renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  NOTIFICATION SYSTEM
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 // getNotifications, addNotification, saveNotifications are in the Supabase layer above
 
 function toggleNotifPanel() {
@@ -4729,9 +4789,9 @@ function timeAgo(ts) {
   return Math.floor(diff/86400000)+'d ago';
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  ASSIGNMENT SYSTEM
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function getAssignments() {
   try { return JSON.parse(localStorage.getItem(ASSIGN_KEY)||'[]'); } catch(e){ return []; }
 }
@@ -4842,9 +4902,9 @@ function submitAssignment() {
   renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  USER EDIT / DUPLICATE / INACTIVE
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function openUserEditModal(username) {
   // Use _dbUsers (Supabase cache) not old teamUsers
   const u = _dbUsers.find(u=>u.username===username||u.id===username);
@@ -4912,9 +4972,9 @@ function closeUserEditModal(e) {
 
 // (handled by Supabase layer above)
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  TRAINING PATHS
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function getPaths() { try{return JSON.parse(localStorage.getItem(PATHS_KEY)||'[]');}catch(e){return[];} }
 function savePaths(p) { localStorage.setItem(PATHS_KEY, JSON.stringify(p)); }
 
@@ -4992,9 +5052,9 @@ function deletePath(idx) {
   showToast('🗑 Path deleted'); renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  VIDEO RATINGS & NOTES
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function getRatings() { try{return JSON.parse(localStorage.getItem(RATINGS_KEY)||'{}');}catch(e){return{};} }
 function getNotes()   { try{return JSON.parse(localStorage.getItem(NOTES_KEY)||'{}');}catch(e){return{};} }
 
@@ -5036,9 +5096,9 @@ function getAvgRating(videoId) {
   const vals=Object.values(r); return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):0;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  VIDEO SCHEDULING (publish on date)
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function isScheduled(v) {
   if (!v.publishAt) return false;
   return new Date(v.publishAt) > new Date();
@@ -5051,9 +5111,9 @@ function videoVisible(v) {
   return true;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  CERTIFICATES
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function canGetCertificate(uid) {
   const reqVids = videos.filter(v=>v.required && !isExpired(v));
   if (!reqVids.length) return false;
@@ -5100,9 +5160,9 @@ function downloadCertificate(uid) {
   if (win) { win.document.write(html); win.document.close(); }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  OVERDUE TRACKING
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function getOverdueAssignments(uid) {
   const now = Date.now();
   let watched=new Set();
@@ -5146,9 +5206,9 @@ function checkOverdueNotifs() {
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  INDIVIDUAL USER REPORT
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function openUserReport(uid) {
   const u = allUsers().find(x=>(x.id||x.username)===uid);
   if (!u) return;
@@ -5218,9 +5278,9 @@ function openUserReport(uid) {
   if (win) { win.document.write(reportHTML); win.document.close(); }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  EXPORT ASSIGNMENTS CSV
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function exportAssignmentsCSV() {
   const assignments = getAssignments();
   const headers = ['Video','Assigned To','Email','Role','Assigned By','Due Date','Priority','Notes','Status'];
@@ -5288,9 +5348,9 @@ function catDragDrop(e, targetName) {
   renderManage();
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  MY TASKS PAGE
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 function renderTasksPage() {
   renderSidebar();
   const uid        = currentUser?.id || currentUser?.username;
@@ -5500,12 +5560,12 @@ function checkUserAssignmentNotifs() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  INIT
-// ═══════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
+// ===============================================================
 //  COMMENTS & RATINGS
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 
 // Star hover helpers (persistent — onmouseout resets to saved rating)
 function hoverStars(videoId, n) {
@@ -5689,10 +5749,10 @@ async function deleteComment(commentId, videoId) {
 
 // Comments & ratings are appended by _initAnalyticsCharts after charts render
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  EMAIL NOTIFICATIONS (EmailJS)
 //  Setup: emailjs.com → create free account → add these IDs
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 const EMAILJS_PUBLIC_KEY  = '';  // ← paste your EmailJS public key here
 const EMAILJS_SERVICE_ID  = '';  // ← paste your EmailJS service ID here
 const EMAILJS_TEMPLATE_ID = '';  // ← paste your EmailJS template ID here
@@ -5743,9 +5803,9 @@ async function sendWelcomeEmail({ name, email, username, pass, role }) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 //  AUTO DURATION DETECTION
-// ═══════════════════════════════════════════════════════════════
+// ===============================================================
 async function autofetchDuration(url) {
   if (!url || !url.trim()) return;
   const durInput  = document.getElementById('new-dur');
