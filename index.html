@@ -3719,28 +3719,31 @@ const blob=new Blob([csv],{type:‘text/csv’});const a=document.createElement(
 }
 
 function openUserReport(userId){
-const u=_dbUsers.find(x=>(x.id||x.username)===userId);if(!u)return;
-const s=loadSettings();const siteName=s.siteName||‘Moore Holdings University’;
-const reqVids=videos.filter(v=>v.required&&!isExpired(v)&&!v.archived);
-const events=_cachedAnalytics.filter(e=>e.userId===userId);
-const watched=reqVids.filter(v=>events.some(e=>(e.type===‘view’||e.type===‘watch_time’)&&String(e.videoId)===String(v.id)));
-const pct=reqVids.length?Math.round(watched.length/reqVids.length*100):100;
-const reportHtml=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Report — ${u.name}</title>
-
-  <style>body{font-family:sans-serif;padding:40px;max-width:800px;margin:0 auto}h1{color:#4a7c3f}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:10px;text-align:left;border-bottom:1px solid #eee}th{background:#f8f8f8;font-weight:700}</style>
-
-\u003cscript>window.onload=function(){document.title=‘Training Report — ${u.name}’;}</script>
-
-  </head><body>
-  <h1>${siteName} — Training Report</h1>
-  <p><strong>Name:</strong> ${u.name} | <strong>Role:</strong> ${u.role} | <strong>Market:</strong> ${u.market||'—'}</p>
-  <p><strong>Required Completion:</strong> ${watched.length}/${reqVids.length} (${pct}%)</p>
-  <h3>Required Videos</h3>
-  <table><thead><tr><th>Video</th><th>Category</th><th>Status</th></tr></thead><tbody>
-  ${reqVids.map(v=>{const w=events.some(e=>(e.type==='view'||e.type==='watch_time')&&String(e.videoId)===String(v.id));return `<tr><td>${v.title}</td><td>${v.category}</td><td style="color:${w?'green':'#c0392b'}">${w?'Watched':'Not watched'}</td></tr>`;}).join('')}
-  </tbody></table>
-  </body></html>`;
-  const w=window.open('','_blank');if(w){w.document.write(reportHtml);w.document.close();}
+var u=_dbUsers.find(function(x){return (x.id||x.username)===userId;});if(!u)return;
+var s=loadSettings();var siteName=s.siteName||‘Moore Holdings University’;
+var reqVids=videos.filter(function(v){return v.required&&!isExpired(v)&&!v.archived;});
+var events=_cachedAnalytics.filter(function(e){return e.userId===userId;});
+var watched=reqVids.filter(function(v){return events.some(function(e){return (e.type===‘view’||e.type===‘watch_time’)&&String(e.videoId)===String(v.id);});});
+var pct=reqVids.length?Math.round(watched.length/reqVids.length*100):100;
+var rows=reqVids.map(function(v){
+var w=events.some(function(e){return (e.type===‘view’||e.type===‘watch_time’)&&String(e.videoId)===String(v.id);});
+return ‘<tr><td>’+v.title+’</td><td>’+v.category+’</td><td style="color:'+(w?'green':'#c0392b')+'">’+(w?‘Watched’:‘Not watched’)+’</td></tr>’;
+}).join(’’);
+var reportHtml=’<!DOCTYPE html><html><head><meta charset="utf-8"><title>Report</title>’
++’<style>body{font-family:sans-serif;padding:40px;max-width:800px;margin:0 auto}’
++‘h1{color:#4a7c3f}table{width:100%;border-collapse:collapse;margin-top:16px}’
++‘th,td{padding:10px;text-align:left;border-bottom:1px solid #eee}’
++‘th{background:#f8f8f8;font-weight:700}</style>’
++’</head><body>’
++’<h1>’+siteName+’ \u2014 Training Report</h1>’
++’<p><strong>Name:</strong> ‘+u.name+’ | <strong>Role:</strong> ‘+u.role+’ | <strong>Market:</strong> ‘+(u.market||’\u2014’)+’</p>’
++’<p><strong>Required Completion:</strong> ‘+watched.length+’/’+reqVids.length+’ (’+pct+’%)</p>’
++’<h3>Required Videos</h3>’
++’<table><thead><tr><th>Video</th><th>Category</th><th>Status</th></tr></thead><tbody>’
++rows
++’</tbody></table>’
++’</body></html>’;
+var w=window.open(’’,’_blank’);if(w){w.document.write(reportHtml);w.document.close();}
 }
 
 // ===============================================================
