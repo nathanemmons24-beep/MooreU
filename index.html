@@ -3163,9 +3163,16 @@ function renderVideosPanel() {
           <div style="font-size:11px;color:var(--muted);margin-top:4px">This category will be created when you add the video.</div>
         </div>
       </div>
-      <div class="ff"><label>Duration (e.g. 5:30)</label><input type="text" id="new-dur" placeholder="0:00"/></div>
       <div class="ff"><label>Video URL <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(YouTube, Vimeo, Loom, or .mp4)</span></label>
-        <input type="text" id="new-url" placeholder="https://www.youtube.com/watch?v=... or vimeo.com/..."/></div>
+        <input type="text" id="new-url" placeholder="https://www.youtube.com/watch?v=..."
+          onblur="autofetchDuration(this.value)"/></div>
+      <div class="ff"><label>Duration
+          <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa" id="dur-status"> — auto-detected from URL</span>
+        </label>
+        <input type="text" id="new-dur" placeholder="Auto-detecting…" readonly
+          style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--muted);font-family:monospace;cursor:text"
+          onclick="this.readOnly=false;this.style.color='var(--text)';document.getElementById('dur-status').textContent=' — manual override'"
+          title="Auto-detected. Click to edit manually."/></div>
       <div class="ff"><label>Tags <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(comma-separated)</span></label>
         <input type="text" id="new-tags" placeholder="onboarding, hr, compliance"/></div>
       <div class="ff"><label>Expires On <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(optional)</span></label>
@@ -3239,7 +3246,7 @@ function handleCatSelect(val) {
 function addVideo() {
   const title    = document.getElementById('new-title')?.value.trim();
   let   cat      = document.getElementById('new-cat')?.value;
-  const dur      = document.getElementById('new-dur')?.value.trim()||'0:00';
+  const dur = document.getElementById('new-dur')?.value.trim() || '0:00';
   const url      = document.getElementById('new-url')?.value.trim()||'';
   const desc     = document.getElementById('new-desc')?.value.trim()||'No description provided.';
   const tagsRaw  = document.getElementById('new-tags')?.value||'';
@@ -3276,6 +3283,11 @@ function addVideo() {
     files:[...stagedFiles], tags, required, featured:false, expiresAt:expires, publishAt,
     addedAt:new Date().toISOString(), sortOrder:videos.length });
   newThumb=''; newThumbUrl=''; stagedFiles=[];
+  // Reset duration field
+  const durEl = document.getElementById('new-dur');
+  if (durEl) { durEl.value=''; durEl.readOnly=true; durEl.placeholder='Auto-detecting…'; durEl.style.color='var(--muted)'; }
+  const durStatus = document.getElementById('dur-status');
+  if (durStatus) durStatus.textContent = ' — auto-detected from URL';
   showToast('⏳ Saving to cloud…');
   renderManage();
   // Auto-save to Supabase immediately — no manual Save needed
@@ -5702,8 +5714,154 @@ async function sendWelcomeEmail({ name, email, username, pass, role }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ARCHIVE SYSTEM — Admin-only browsable section
+//  AUTO DURATION DETECTION
 // ═══════════════════════════════════════════════════════════════
+async function autofetchDuration(url) {
+  if (!url || !url.trim()) return;
+  const durInput  = document.getElementById('new-dur');
+  const durStatus = document.getElementById('dur-status');
+  if (!durInput || durInput.readOnly === false) return; // user editing manually
+
+  durInput.value = '';
+  durInput.placeholder = 'Detecting…';
+  if (durStatus) durStatus.textContent = ' — detecting…';
+
+  try {
+    const secs = await detectDuration(url.trim());
+    if (secs && secs > 0) {
+      durInput.value = secsToDur(secs);
+      durInput.style.color = 'var(--green)';
+      if (durStatus) durStatus.textContent = ` — auto-detected ✓`;
+    } else {
+      durInput.placeholder = '0:00';
+      if (durStatus) durStatus.textContent = ' — could not detect, enter manually';
+      durInput.readOnly = false;
+      durInput.style.color = 'var(--text)';
+    }
+  } catch(e) {
+    durInput.placeholder = '0:00';
+    if (durStatus) durStatus.textContent = ' — enter manually';
+    durInput.readOnly = false;
+    durInput.style.color = 'var(--text)';
+  }
+}
+
+async function detectDuration(url) {
+  // ── YouTube ─────────────────────────────────────────────────
+  const ytId = extractYouTubeId(url);
+  if (ytId) {
+    // YouTube oEmbed doesn't give duration. Use noembed proxy.
+    try {
+      const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytId}`);
+      const data = await res.json();
+      // noembed doesn't return duration either — use the iframe API approach
+      // Instead, load a hidden YouTube iframe and read its duration
+      return await getYouTubeDurationViaIframe(ytId);
+    } catch(e) {}
+    return null;
+  }
+
+  // ── Vimeo ────────────────────────────────────────────────────
+  const vimeoId = extractVimeoId(url);
+  if (vimeoId) {
+    try {
+      const res = await fetch(`https://vimeo.com/api/v2/video/${vimeoId}.json`);
+      const data = await res.json();
+      return data?.[0]?.duration || null;
+    } catch(e) {}
+    return null;
+  }
+
+  // ── MP4 ──────────────────────────────────────────────────────
+  if (isMp4(url)) {
+    return await getMp4Duration(url);
+  }
+
+  return null;
+}
+
+function extractYouTubeId(url) {
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m?.[1] || null;
+}
+
+function extractVimeoId(url) {
+  const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  return m?.[1] || null;
+}
+
+function secsToDur(secs) {
+  const s = Math.round(secs);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function getYouTubeDurationViaIframe(videoId) {
+  return new Promise(resolve => {
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1px;height:1px;';
+    iframe.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1`;
+    iframe.allow = 'autoplay';
+    document.body.appendChild(iframe);
+
+    let resolved = false;
+    const cleanup = () => { try{document.body.removeChild(iframe);}catch(e){} };
+
+    // Listen for YouTube iframe API messages
+    const handler = (e) => {
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (data?.event === 'infoDelivery' && data?.info?.duration && !resolved) {
+          resolved = true;
+          window.removeEventListener('message', handler);
+          cleanup();
+          resolve(data.info.duration);
+        }
+      } catch(err) {}
+    };
+    window.addEventListener('message', handler);
+
+    // Request video info after iframe loads
+    iframe.onload = () => {
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.postMessage(JSON.stringify({event:'listening',id:1}), '*');
+          iframe.contentWindow.postMessage(JSON.stringify({event:'command',func:'getDuration',args:[],id:1}), '*');
+        } catch(e) {}
+      }, 1000);
+    };
+
+    // Fallback timeout — 6 seconds
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        window.removeEventListener('message', handler);
+        cleanup();
+        resolve(null);
+      }
+    }, 6000);
+  });
+}
+
+function getMp4Duration(url) {
+  return new Promise(resolve => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.crossOrigin = 'anonymous';
+    video.onloadedmetadata = () => {
+      resolve(video.duration && isFinite(video.duration) ? video.duration : null);
+      video.src = '';
+    };
+    video.onerror = () => resolve(null);
+    video.src = url;
+    setTimeout(() => resolve(null), 8000);
+  });
+}
+
+
 let archiveFilter    = 'all';
 let teamMarketFilter = 'all';
 let analyticsMarket  = 'all'; // 'all' | 'videos' | 'categories' | 'assets'
