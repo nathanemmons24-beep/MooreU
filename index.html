@@ -3394,10 +3394,6 @@ function addVideo(){
 // MANAGE PAGE - MAIN RENDERER
 // ===============================================================
 // dirty declared above (duplicate removed)
-function refreshDirtyUI(){
-  document.getElementById('unsaved-pill')?.classList.toggle('on',dirty);
-  document.getElementById('save-tb-btn')?.classList.toggle('on',dirty);
-}
 
 function renderManage(){
   const realRole=currentUser?.role;
@@ -3802,7 +3798,7 @@ function openUserReport(userId){
   const pct=reqVids.length?Math.round(watched.length/reqVids.length*100):100;
   const reportHtml=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Report — ${u.name}</title>
   <style>body{font-family:sans-serif;padding:40px;max-width:800px;margin:0 auto}h1{color:#4a7c3f}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:10px;text-align:left;border-bottom:1px solid #eee}th{background:#f8f8f8;font-weight:700}</style>
-  <script>window.onload=function(){document.title='Training Report — ${u.name}';}<\/script>
+  \u003cscript>window.onload=function(){document.title='Training Report — ${u.name}';}<\/script>
   </head><body>
   <h1>${siteName} — Training Report</h1>
   <p><strong>Name:</strong> ${u.name} | <strong>Role:</strong> ${u.role} | <strong>Market:</strong> ${u.market||'—'}</p>
@@ -4116,13 +4112,6 @@ function postAnnouncement(){
 }
 function clearAnnouncement(){saveAnnouncement(null);showAnnouncementBar();renderManage();}
 
-function toggleVisibility(role,catName,isVisible){
-  const vis=loadVisibility();vis[role+'__'+catName]=isVisible;saveVisibility(vis);
-  const cb=event.target;const label=cb.nextElementSibling;
-  if(label){label.textContent=isVisible?'Visible':'Hidden';label.style.color=isVisible?'var(--green)':'var(--muted)';}
-  showToast((isVisible?'Visible':'Hidden')+': '+catName+' for '+role+'s');
-  dbSetVis(role,catName,isVisible);
-}
 
 
 
@@ -4681,7 +4670,7 @@ function downloadCertificate(userId) {
   '.courses{border:1px solid #d4e6d0;border-radius:8px;padding:16px 20px;margin-bottom:36px;background:#f8fdf6}'+
   '.footer{display:flex;justify-content:space-between;align-items:flex-end;padding-top:20px;border-top:1px solid #eee}'+
   '@media print{body{background:#fff;padding:0}.cert{box-shadow:none;border:none}}</style>'+
-  '<script>window.onload=function(){window.print();}<\/script>'+
+  '<scr'+'ipt>window.onload=function(){window.print();}<\/script>'+
   '</head><body><div class="cert">'+
   '<div style="font-family:Syne,sans-serif;font-size:13px;font-weight:800;color:#4a7c3f;letter-spacing:.15em;text-transform:uppercase;text-align:center;margin-bottom:8px">'+siteName+'</div>'+
   '<h1>Certificate of Completion</h1>'+
