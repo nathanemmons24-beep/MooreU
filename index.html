@@ -4804,32 +4804,56 @@ function submitAssignment() {
 //  USER EDIT / DUPLICATE / INACTIVE
 // ═══════════════════════════════════════════════════════════════
 function openUserEditModal(username) {
-  const u = teamUsers.find(u=>u.username===username||u.id===username);
-  if (!u) return;
-  editingUserId = username;
-  document.getElementById('user-edit-modal-title').textContent = `Edit User: ${u.name}`;
-  const marketOpts = MARKETS.map(m=>`<option value="${m}" ${u.market===m?'selected':''}>${m}</option>`).join('');
+  // Use _dbUsers (Supabase cache) not old teamUsers
+  const u = _dbUsers.find(u=>u.username===username||u.id===username);
+  if (!u) { showToast('⚠ User not found — try refreshing'); return; }
+  editingUserId = u.username || u.id;
+
+  const marketOpts = MARKETS.map(m=>
+    `<option value="${m}" ${(u.market||'')=== m?'selected':''}>${m}</option>`
+  ).join('');
+
+  document.getElementById('user-edit-modal-title').textContent = `Edit User`;
   document.getElementById('user-edit-modal-body').innerHTML = `
-    <div class="form-grid" style="padding:0 0 20px">
-      <div class="ff"><label>Full Name</label><input type="text" id="eu-name" value="${u.name}"/></div>
-      <div class="ff"><label>Email</label><input type="email" id="eu-email" value="${u.email||''}"/></div>
-      <div class="ff"><label>Username</label><input type="text" id="eu-uname" value="${u.username||u.id}" disabled style="opacity:.5;cursor:not-allowed"/></div>
-      <div class="ff"><label>New Password <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(leave blank to keep)</span></label>
-        <input type="password" id="eu-pass" placeholder="New password..."/></div>
-      <div class="ff"><label>Market</label>
-        <select id="eu-market"><option value="">— Select Market —</option>${marketOpts}</select></div>
-      <div class="ff"><label>Role</label>
-        <select id="eu-role">
-          <option value="member" ${u.role==='member'?'selected':''}>Member</option>
-          <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
-          ${currentUser?.role==='admin'?`<option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>`:''}
-        </select>
+    <div style="padding:4px 0 20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:12px 14px;background:var(--green-bg);border:1.5px solid rgba(74,124,63,.2);border-radius:10px">
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:#fff;flex-shrink:0">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div><div style="font-weight:700;font-size:14px">${u.name}</div>
+          <div style="font-size:12px;color:var(--muted)">${u.email||u.username} · ${u.role}${u.market?' · '+u.market:''}</div></div>
       </div>
-    </div>
-    <div class="edit-actions">
-      <button class="btn-save-edit" onclick="saveUserEdit()">💾 Save Changes</button>
-      <button class="btn-cancel-edit" onclick="closeUserEditModal()">Cancel</button>
+      <div class="form-grid">
+        <div class="ff"><label>Full Name</label>
+          <input type="text" id="eu-name" value="${u.name}" placeholder="Full name"
+            style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:100%;box-sizing:border-box"
+            onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"/></div>
+        <div class="ff"><label>Email</label>
+          <input type="email" id="eu-email" value="${u.email||''}" placeholder="email@company.com"
+            style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:100%;box-sizing:border-box"
+            onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"/></div>
+        <div class="ff"><label>Username <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(cannot change)</span></label>
+          <input type="text" value="${u.username||u.id}" disabled
+            style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--muted);font-family:monospace;outline:none;width:100%;box-sizing:border-box;opacity:.6"/></div>
+        <div class="ff"><label>New Password <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(blank = keep current)</span></label>
+          <input type="password" id="eu-pass" placeholder="Leave blank to keep password"
+            style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:100%;box-sizing:border-box"
+            onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"/></div>
+        <div class="ff"><label>Market</label>
+          <select id="eu-market" style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:100%;cursor:pointer">
+            <option value="">— Select Market —</option>${marketOpts}
+          </select></div>
+        <div class="ff"><label>Role</label>
+          <select id="eu-role" style="background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:100%;cursor:pointer">
+            <option value="member" ${u.role==='member'?'selected':''}>Member</option>
+            <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
+            ${currentUser?.role==='admin'?`<option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>`:''}
+          </select></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button onclick="saveUserEdit()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:11px 24px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:background .2s" onmouseover="this.style.background='var(--green-dark)'" onmouseout="this.style.background='var(--green)'">💾 Save Changes</button>
+        <button onclick="closeUserEditModal()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:11px 20px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='#999';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">Cancel</button>
+      </div>
     </div>`;
+
   document.getElementById('user-edit-overlay').style.display='flex';
 }
 
