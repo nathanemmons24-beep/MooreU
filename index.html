@@ -4967,6 +4967,21 @@ cats=Object.fromEntries(entries);_catDragName2=null;saveData();renderManage();
 if (typeof teamMarketFilter === ‘undefined’) var teamMarketFilter = ‘all’;
 if (typeof analyticsMarket === ‘undefined’) var analyticsMarket = ‘all’;
 
+window.onerror = function(msg, src, line, col, err) {
+const d = document.createElement(‘div’);
+d.style.cssText = ‘position:fixed;top:0;left:0;right:0;background:#c0392b;color:#fff;padding:16px;z-index:99999;font-family:monospace;font-size:13px;white-space:pre-wrap;’;
+d.textContent = ’JS ERROR: ’ + msg + ’\nLine: ’ + line + ’ Col: ’ + col + ’\nFile: ’ + src;
+document.body.appendChild(d);
+return false;
+};
+
+window.addEventListener(‘unhandledrejection’, function(e) {
+const d = document.createElement(‘div’);
+d.style.cssText = ‘position:fixed;top:0;left:0;right:0;background:#7c3aed;color:#fff;padding:16px;z-index:99999;font-family:monospace;font-size:13px;white-space:pre-wrap;’;
+d.textContent = ’PROMISE ERROR: ’ + (e.reason?.message || e.reason || ‘Unknown’);
+document.body.appendChild(d);
+});
+
 window.onload = async () => {
 activeFilter=‘All’; searchQuery=’’;
 applySettings(loadSettings());
