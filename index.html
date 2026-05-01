@@ -1862,7 +1862,7 @@ function renderProfileOverview(u, uid) {
   const reqDone  = reqVids.filter(v=>watchedIds.has(String(v.id))).length;
   const reqPct   = reqVids.length ? Math.round(reqDone/reqVids.length*100) : 100;
   const events   = getAnalyticsEvents().filter(e=>e.userId===uid&&e.type==='view');
-  const totalHrs = (events.reduce((s,e)=>s+(e.durationSecs||0),0)/3600).toFixed(1);
+  const totalHrs = Math.round(events.reduce((s,e)=>s+(e.durationSecs||0),0)/60);
 
   const myAssign = getAssignments().filter(a=>a.userId===uid);
   const pending  = myAssign.filter(a=>{let w=new Set();try{w=new Set(JSON.parse(localStorage.getItem('mhu_u_'+uid+'_watched')||'[]'));}catch(e){}return !w.has(a.videoId);});
@@ -1898,7 +1898,7 @@ function renderProfileOverview(u, uid) {
       ${certBanner ? certBanner+'<div style="height:16px"></div>' : ''}
       <div class="profile-stat-row">
         <div class="profile-stat"><div class="profile-stat-num">${watched}</div><div class="profile-stat-label">Watched</div></div>
-        <div class="profile-stat"><div class="profile-stat-num">${totalHrs}h</div><div class="profile-stat-label">Hours</div></div>
+        <div class="profile-stat"><div class="profile-stat-num">${totalHrs}m</div><div class="profile-stat-label">Minutes</div></div>
         <div class="profile-stat"><div class="profile-stat-num">${bmarks}</div><div class="profile-stat-label">Bookmarks</div></div>
       </div>
     </div>
@@ -2063,7 +2063,7 @@ function renderProfileActivity(uid) {
       <div class="profile-section-hdr">📊 Summary</div>
       <div class="profile-stat-row">
         <div class="profile-stat"><div class="profile-stat-num">${totalViews}</div><div class="profile-stat-label">Views</div></div>
-        <div class="profile-stat"><div class="profile-stat-num">${(totalSecs/3600).toFixed(1)}h</div><div class="profile-stat-label">Watched</div></div>
+        <div class="profile-stat"><div class="profile-stat-num">${Math.round(totalSecs/60)}m</div><div class="profile-stat-label">Minutes</div></div>
         <div class="profile-stat"><div class="profile-stat-num">${totalDls}</div><div class="profile-stat-label">Downloads</div></div>
       </div>
     </div>
@@ -3853,7 +3853,7 @@ function renderAnalyticsPanel() {
   const totalViews    = viewEvts.length;
   const totalDls      = dlEvts.length;
   const totalSecs     = viewEvts.reduce((s,e) => s + (e.durationSecs||0), 0);
-  const totalHrs      = (totalSecs/3600).toFixed(1);
+  const totalHrs      = Math.round(totalSecs/60);
   const uniqueViewers = new Set(viewEvts.map(e=>e.userId)).size;
 
   // ── Day buckets ──────────────────────────────────────────────
@@ -3867,7 +3867,7 @@ function renderAnalyticsPanel() {
     const dd = dlEvts.filter(e=>e.ts>=ds&&e.ts<de);
     viewsByDay.push(dv.length);
     dlsByDay.push(dd.length);
-    hrsByDay.push(+(dv.reduce((s,e)=>s+(e.durationSecs||0),0)/3600).toFixed(2));
+    hrsByDay.push(Math.round(dv.reduce((s,e)=>s+(e.durationSecs||0),0)/60));
   }
 
   // ── Per-user stats ───────────────────────────────────────────
@@ -3877,7 +3877,7 @@ function renderAnalyticsPanel() {
     const ud  = dlEvts.filter(e=>e.userId===uid);
     const s   = uv.reduce((s,e)=>s+(e.durationSecs||0),0);
     return { u, uid, views:uv.length, downloads:ud.length, secs:s,
-      hrs:(s/3600).toFixed(1), color:AVATAR_COLORS[i%AVATAR_COLORS.length],
+      hrs:Math.round(s/60), color:AVATAR_COLORS[i%AVATAR_COLORS.length],
       initials:u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() };
   }).sort((a,b)=>b.views-a.views);
   const maxUViews = Math.max(1,...userStats.map(u=>u.views));
@@ -3996,9 +3996,9 @@ function renderAnalyticsPanel() {
     </div>
     <div class="stat-card">
       <div class="stat-card-icon">⏱</div>
-      <div class="stat-card-label">Hours Watched</div>
+      <div class="stat-card-label">Minutes Watched</div>
       <div class="stat-card-value">${totalHrs}</div>
-      <div class="stat-card-sub">total viewing time</div>
+      <div class="stat-card-sub">total watch time</div>
     </div>
     <div class="stat-card">
       <div class="stat-card-icon">👥</div>
@@ -4026,7 +4026,7 @@ function renderAnalyticsPanel() {
 
   <div class="chart-card">
     <div class="chart-title">⏱ Watch Time by Day</div>
-    <div class="chart-sub">Hover over points for exact hours watched that day</div>
+    <div class="chart-sub">Hover over points for exact minutes watched that day</div>
     <div class="chart-wrap" style="position:relative">
       <canvas id="chart-hrs" height="180" style="width:100%;cursor:crosshair"></canvas>
       <div id="tip-hrs" class="chart-tooltip"></div>
@@ -4042,7 +4042,7 @@ function renderAnalyticsPanel() {
           <div class="ua-avatar" style="background:${u.color}">${u.initials}</div>
           <div class="ua-info">
             <div class="ua-name">${u.u.name} <span style="font-size:10px;background:${u.u.role==='admin'?'rgba(74,124,63,.12)':u.u.role==='manager'?'rgba(124,58,237,.1)':'rgba(26,26,26,.06)'};color:${u.u.role==='admin'?'var(--green)':u.u.role==='manager'?'#7c3aed':'var(--muted)'};padding:1px 6px;border-radius:4px;font-weight:700;text-transform:uppercase">${u.u.role}</span></div>
-            <div class="ua-role-lbl">${u.hrs}h watched · ${u.views} views</div>
+            <div class="ua-role-lbl">${u.hrs}m watched · ${u.views} views</div>
           </div>
           <div class="ua-bar-wrap" style="width:90px">
             <div class="ua-bar"><div class="ua-bar-fill" style="width:${Math.round(u.views/maxUViews*100)}%;background:var(--green)"></div></div>
@@ -4076,7 +4076,7 @@ function renderAnalyticsPanel() {
       <div class="ua-row">
         <div style="flex:1;min-width:0">
           <div class="ua-name">${vs.v.title}</div>
-          <div class="ua-role-lbl">${vs.v.category} · ${(vs.secs/3600).toFixed(1)}h total</div>
+          <div class="ua-role-lbl">${vs.v.category} · ${Math.round(vs.secs/60)}m total</div>
         </div>
         <div class="ua-bar-wrap" style="width:90px">
           <div class="ua-bar"><div class="ua-bar-fill" style="width:${Math.round(vs.views/maxVV*100)}%;background:#7c3aed"></div></div>
@@ -4318,14 +4318,14 @@ function _initAnalyticsCharts() {
 
     requestAnimationFrame(()=>{
       drawBarChart('chart-views','tip-views', raw.dayLabels, raw.viewsByDay, raw.dlsByDay, green, amber, 'Views','Downloads');
-      drawLineChart('chart-hrs','tip-hrs', raw.dayLabels, raw.hrsByDay, purple, 'h');
+      drawLineChart('chart-hrs','tip-hrs', raw.dayLabels, raw.hrsByDay, purple, 'min');
       loadAnalyticsComments();
     });
 
     window.removeEventListener('resize', window._analyticsResizeFn);
     window._analyticsResizeFn = function() {
       drawBarChart('chart-views','tip-views', raw.dayLabels, raw.viewsByDay, raw.dlsByDay, green, amber, 'Views','Downloads');
-      drawLineChart('chart-hrs','tip-hrs', raw.dayLabels, raw.hrsByDay, purple, 'h');
+      drawLineChart('chart-hrs','tip-hrs', raw.dayLabels, raw.hrsByDay, purple, 'min');
     };
     window.addEventListener('resize', window._analyticsResizeFn);
 }
@@ -4946,7 +4946,7 @@ function openUserReport(uid) {
   const assignments = getAssignments().filter(a=>a.userId===uid);
   const overdue = getOverdueAssignments(uid);
   const events  = getAnalyticsEvents().filter(e=>e.userId===uid&&e.type==='view');
-  const totalHrs= (events.reduce((s,e)=>s+(e.durationSecs||0),0)/3600).toFixed(1);
+  const totalHrs= Math.round(events.reduce((s,e)=>s+(e.durationSecs||0),0)/60);
   const canCert = canGetCertificate(uid);
   const color   = AVATAR_COLORS[allUsers().indexOf(u)%AVATAR_COLORS.length];
   const initials= u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
@@ -4982,7 +4982,7 @@ function openUserReport(uid) {
   </div>
   <div class="stats">
     <div class="stat"><div class="stat-n">${watchedVids.length}</div><div class="stat-l">Videos Watched</div></div>
-    <div class="stat"><div class="stat-n">${totalHrs}h</div><div class="stat-l">Hours Watched</div></div>
+    <div class="stat"><div class="stat-n">${totalHrs}m</div><div class="stat-l">Mins Watched</div></div>
     <div class="stat"><div class="stat-n">${assignments.length}</div><div class="stat-l">Assigned</div></div>
     <div class="stat"><div class="stat-n" style="color:${overdue.length?'#c0392b':'#4a7c3f'}">${overdue.length}</div><div class="stat-l">Overdue</div></div>
   </div>
