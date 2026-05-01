@@ -1296,24 +1296,29 @@ async function addTeamUser(){
   const uname  = document.getElementById('new-user-uname')?.value.trim().toLowerCase().replace(/\s+/g,'');
   const pass   = document.getElementById('new-user-pass')?.value;
   const role   = document.getElementById('new-user-role')?.value;
+  const market = document.getElementById('new-user-market')?.value || '';
 
   if(!name)  { showToast('⚠ Enter a full name'); return; }
   if(!email) { showToast('⚠ Enter an email address'); return; }
   if(!uname) { showToast('⚠ Enter a username'); return; }
   if(!pass||pass.length<6) { showToast('⚠ Password must be at least 6 characters'); return; }
+  if(!market){ showToast('⚠ Select a market'); return; }
   if(currentUser?.role==='manager'&&role==='admin') { showToast('⚠ Managers cannot create Admin accounts'); return; }
   if(_dbUsers.some(u=>u.username===uname||(u.email||'').toLowerCase()===email.toLowerCase())) {
     showToast('⚠ Username or email already in use'); return;
   }
+  // Managers can only add users to their own markets
+  if(currentUser?.role==='manager') {
+    const myMarkets = (currentUser.market||'').split(',').map(m=>m.trim());
+    if(!myMarkets.includes(market)) { showToast('⚠ You can only add users to your own market(s)'); return; }
+  }
 
   showToast('⏳ Creating account…');
-  const created = await dbCreateUser({ username:uname, name, email, pass, role, inactive:false });
+  const created = await dbCreateUser({ username:uname, name, email, pass, role, market, inactive:false });
   if(created?.[0]) {
     _dbUsers.push(created[0]);
-    showToast(`✅ ${name} added as ${role}`);
-    // Send welcome email
+    showToast(`✅ ${name} added as ${role} — ${market}`);
     sendWelcomeEmail({ name, email, username:uname, pass, role });
-    // Clear form fields
     ['new-user-name','new-user-email','new-user-uname','new-user-pass'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
@@ -1330,20 +1335,31 @@ async function deleteTeamUser(username){
 }
 async function toggleUserInactive(username){
   const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
+  // Managers cannot deactivate other managers or admins
+  if(currentUser?.role==='manager'&&(u.role==='manager'||u.role==='admin')){
+    showToast('⚠ Managers cannot deactivate other Managers or Admins'); return;
+  }
   await dbUpdateUser(u.id,{inactive:!u.inactive});u.inactive=!u.inactive;
   showToast(u.inactive?`🚫 ${u.name} deactivated`:`✅ ${u.name} reactivated`);renderManage();
 }
 async function saveUserEdit(){
   const u=_dbUsers.find(u=>u.username===editingUserId||u.id===editingUserId);if(!u)return;
-  const nm=document.getElementById('eu-name')?.value.trim(),em=document.getElementById('eu-email')?.value.trim(),pw=document.getElementById('eu-pass')?.value,ro=document.getElementById('eu-role')?.value;
-  if(!nm){showToast('⚠ Name cannot be empty');return;}if(pw&&pw.length<6){showToast('⚠ Password min 6 chars');return;}
-  const upd={name:nm,email:em,role:ro};if(pw&&pw.length>=6)upd.pass=pw;
-  await dbUpdateUser(u.id,upd);Object.assign(u,upd);showToast(`✅ ${u.name} updated`);closeUserEditModal();renderManage();
+  const nm=document.getElementById('eu-name')?.value.trim();
+  const em=document.getElementById('eu-email')?.value.trim();
+  const pw=document.getElementById('eu-pass')?.value;
+  const ro=document.getElementById('eu-role')?.value;
+  const mk=document.getElementById('eu-market')?.value||u.market||'';
+  if(!nm){showToast('⚠ Name cannot be empty');return;}
+  if(pw&&pw.length<6){showToast('⚠ Password min 6 chars');return;}
+  const upd={name:nm,email:em,role:ro,market:mk};
+  if(pw&&pw.length>=6)upd.pass=pw;
+  await dbUpdateUser(u.id,upd);Object.assign(u,upd);
+  showToast(`✅ ${u.name} updated`);closeUserEditModal();renderManage();
 }
 async function duplicateTeamUser(username){
   const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
   const nu=u.username+'_copy';if(_dbUsers.some(x=>x.username===nu)){showToast('⚠ Copy exists');return;}
-  const c=await dbCreateUser({username:nu,name:u.name+' (Copy)',email:u.email.replace('@','_copy@'),pass:'changeme1',role:u.role,inactive:false});
+  const c=await dbCreateUser({username:nu,name:u.name+' (Copy)',email:u.email.replace('@','_copy@'),pass:'changeme1',role:u.role,market:u.market||'',inactive:false});
   if(c?.[0]){_dbUsers.push(c[0]);showToast('⧉ Copied · pw: changeme1');renderManage();}
 }
 async function saveProfilePassword(){
@@ -1463,6 +1479,13 @@ const NOW_ISO = new Date().toISOString();
 const DEFAULT_VIDEOS = []; // No demo videos — add real content via Manage Videos
 // Built-in seed users (always present as fallback)
 const SEED_USERS = []; // All users now managed via Supabase mhu_users table
+
+const MARKETS = [
+  'Georgia','Chattanooga','Nashville','Knoxville','Toronto',
+  'Indianapolis','South Bend','Cincinnati',
+  'Long Island','New Jersey','Westchester','San Francisco'
+];
+
 
 const COLOR_PALETTES = [
   {color:'#1a5276',bg:'rgba(26,82,118,.12)', gradient:'#0a1a26,#0d2233'},
@@ -3596,59 +3619,102 @@ function deleteCategory(name) {
 
 // ─── Standalone Team Panel (for managers) ─────────────────────
 function renderTeamPanel() {
-  const all = allUsers();
   const viewerRole = currentUser?.role;
   const isAdminViewer = viewerRole === 'admin';
-  const teamRows = all.map((u,i) => {
+  const myMarkets = viewerRole==='manager' ? (currentUser?.market||'').split(',').map(m=>m.trim()).filter(Boolean) : [];
+  const marketOpts = MARKETS.map(m=>`<option value="${m}">${m}</option>`).join('');
+
+  // Filter: managers only see users in their own markets
+  let all = allUsers();
+  if (viewerRole==='manager') {
+    all = all.filter(u=>{
+      if (u.role==='admin') return false; // managers never see admins
+      return myMarkets.length===0 || myMarkets.includes(u.market||'');
+    });
+  }
+
+  // Market filter pill
+  const allMarkets = [...new Set(allUsers().map(u=>u.market||'').filter(Boolean))].sort();
+  const marketFilterOpts = ['all',...allMarkets].map(m=>
+    `<option value="${m}" ${teamMarketFilter===m?'selected':''}>${m==='all'?'All Markets':m}</option>`
+  ).join('');
+
+  let filtered = all;
+  if (teamMarketFilter!=='all') filtered = all.filter(u=>u.market===teamMarketFilter);
+
+  const tableRows = filtered.map((u,i)=>{
     const isBuiltIn = SEED_USERS.some(s=>s.id===u.id);
     const uid = u.username||u.id;
-    const initials = u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
-    const color = AVATAR_COLORS[i % AVATAR_COLORS.length];
-    const roleBadgeClass = u.role==='admin'?'role-admin': u.role==='manager'?'role-manager':'role-member';
-    // Admin can edit/dup/delete/deactivate; Manager can only deactivate non-admin non-builtin
-    const canEdit   = isAdminViewer && !isBuiltIn;
-    const canDeact  = !isBuiltIn && (isAdminViewer || (viewerRole==='manager' && u.role!=='admin'));
-    const passHint  = isAdminViewer && !isBuiltIn ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">🔑 <span style="font-family:monospace;background:var(--bg);padding:1px 6px;border-radius:4px;border:1px solid var(--border)">${u.pass||'—'}</span></div>` : '';
-    const actions   = canEdit || canDeact ? `<div class="user-actions-row">
-          ${canEdit?`<button class="btn-edit-user" onclick="openUserEditModal('${uid}')">✏ Edit</button>`:''}
-          ${canEdit?`<button class="btn-dup-user"  onclick="duplicateTeamUser('${uid}')">⧉ Duplicate</button>`:''}
-          ${canDeact?`<button class="btn-inactive-user ${u.inactive?'active-state':''}" onclick="toggleUserInactive('${uid}')">${u.inactive?'✓ Reactivate':'⊘ Deactivate'}</button>`:''}
-          ${canEdit?`<button class="team-del-btn" onclick="deleteTeamUser('${uid}')">Remove</button>`:''}
-        </div>` : (isBuiltIn ? '<div style="font-size:11px;color:var(--muted);margin-top:4px">Built-in account</div>' : '');
-    return `<div class="team-card ${u.inactive?'inactive-card':''}">
-      <div class="team-avatar" style="background:${color}">${initials}</div>
-      <div class="team-info" style="flex:1;min-width:0">
-        <div class="team-name">${u.name}${u.inactive?'<span style="margin-left:6px;font-size:10px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;padding:1px 6px;border-radius:4px;font-weight:700">Inactive</span>':''}</div>
-        <div class="team-email">${u.email||u.id}</div>
-        <span class="team-role-badge ${roleBadgeClass}">${u.role}</span>
-        ${passHint}
-        ${actions}
-      </div>
-    </div>`;
+    const canEdit  = isAdminViewer && !isBuiltIn;
+    const canDeact = !isBuiltIn && (isAdminViewer || (viewerRole==='manager' && u.role==='member'));
+    const roleCls  = u.role==='admin'?'role-admin':u.role==='manager'?'role-manager':'role-member';
+    return `<tr class="${u.inactive?'opacity-50':''}">
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:28px;height:28px;border-radius:50%;background:${AVATAR_COLORS[i%AVATAR_COLORS.length]};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px;color:#fff;flex-shrink:0">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+          <div>
+            <div style="font-weight:600;font-size:13px">${u.name}${u.inactive?'<span style="margin-left:5px;font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-weight:700">Inactive</span>':''}</div>
+            <div style="font-size:11px;color:var(--muted)">${u.email||uid}</div>
+          </div>
+        </div>
+      </td>
+      <td><span style="font-size:12px;color:var(--muted)">${u.market||'—'}</span></td>
+      <td><span style="font-family:monospace;font-size:12px;background:var(--bg);padding:2px 7px;border-radius:4px;border:1px solid var(--border)">${uid}</span></td>
+      <td>${isAdminViewer&&!isBuiltIn?`<span style="font-family:monospace;font-size:12px;background:var(--bg);padding:2px 7px;border-radius:4px;border:1px solid var(--border)">${u.pass||'—'}</span>`:'<span style="color:var(--muted);font-size:12px">••••••</span>'}</td>
+      <td><span class="team-role-badge ${roleCls}">${u.role}</span></td>
+      <td>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${canEdit?`<button class="btn-edit-user" onclick="openUserEditModal('${uid}')">✏</button>`:''}
+          ${canEdit?`<button class="btn-dup-user"  onclick="duplicateTeamUser('${uid}')">⧉</button>`:''}
+          ${canDeact?`<button class="btn-inactive-user ${u.inactive?'active-state':''}" onclick="toggleUserInactive('${uid}')">${u.inactive?'↑ On':'⊘ Off'}</button>`:''}
+          ${canEdit?`<button class="team-del-btn" onclick="deleteTeamUser('${uid}')">✕</button>`:''}
+        </div>
+      </td>
+    </tr>`;
   }).join('');
 
   return `
   <div class="acard">
     <div class="acard-title">➕ Add New User</div>
-    <div class="acard-sub">Add team members. Managers can add Members and other Managers.</div>
+    <div class="acard-sub">Managers can only add users to their own market(s).</div>
     <div class="form-grid">
       <div class="ff"><label>Full Name</label><input type="text" id="new-user-name" placeholder="Jane Smith"/></div>
       <div class="ff"><label>Email</label><input type="email" id="new-user-email" placeholder="jane@company.com"/></div>
-      <div class="ff"><label>Username</label><input type="text" id="new-user-uname" placeholder="janesmith (no spaces)"/></div>
-      <div class="ff"><label>Password</label><input type="password" id="new-user-pass" placeholder="Set a password"/></div>
+      <div class="ff"><label>Username</label><input type="text" id="new-user-uname" placeholder="janesmith"/></div>
+      <div class="ff"><label>Password</label><input type="password" id="new-user-pass" placeholder="Min 6 characters"/></div>
+      <div class="ff"><label>Market</label>
+        <select id="new-user-market">
+          <option value="">— Select Market —</option>${marketOpts}
+        </select>
+      </div>
       <div class="ff"><label>Role</label>
         <select id="new-user-role">
-          <option value="member">Member — standard library access</option>
-          <option value="manager">Manager — can manage team members</option>
+          <option value="member">Member</option>
+          <option value="manager">Manager</option>
         </select>
       </div>
     </div>
     <button class="btn-green-lg" onclick="addTeamUser()" style="margin-top:12px">Add User</button>
   </div>
   <div class="acard">
-    <div class="acard-title">👥 Current Team (${all.length})</div>
-    <div class="acard-sub">Managers can remove Members and Managers. Only Admins can remove Admin accounts.</div>
-    <div class="team-grid">${teamRows}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+      <div class="acard-title" style="margin:0">👥 Current Team (${filtered.length}${filtered.length!==all.length?` of ${all.length}`:''})</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600">Filter:</label>
+        <select onchange="teamMarketFilter=this.value;renderManage()"
+          style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text);outline:none;cursor:pointer">
+          ${marketFilterOpts}
+        </select>
+      </div>
+    </div>
+    <div class="vtable-wrap">
+      <table class="report-table">
+        <thead><tr>
+          <th>Name</th><th>Market</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th>
+        </tr></thead>
+        <tbody>${tableRows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No users match.</td></tr>'}</tbody>
+      </table>
+    </div>
   </div>`;
 }
 
@@ -3804,26 +3870,71 @@ function renderSettingsPanel() {
 
   <div class="acard">
     <div class="acard-title">👥 Team Management</div>
-    <div class="acard-sub">Add or remove team members. Managers can also manage team members from their panel.</div>
+    <div class="acard-sub">Add or remove team members. Admins can edit, duplicate, and delete.</div>
     <div style="margin-bottom:22px">
       <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;margin-bottom:14px;color:var(--black)">➕ Add New User</div>
       <div class="form-grid">
         <div class="ff"><label>Full Name</label><input type="text" id="new-user-name" placeholder="Jane Smith"/></div>
         <div class="ff"><label>Email</label><input type="email" id="new-user-email" placeholder="jane@company.com"/></div>
-        <div class="ff"><label>Username</label><input type="text" id="new-user-uname" placeholder="janesmith (no spaces)"/></div>
-        <div class="ff"><label>Password</label><input type="password" id="new-user-pass" placeholder="Set a password"/></div>
+        <div class="ff"><label>Username</label><input type="text" id="new-user-uname" placeholder="janesmith"/></div>
+        <div class="ff"><label>Password</label><input type="password" id="new-user-pass" placeholder="Min 6 characters"/></div>
+        <div class="ff"><label>Market</label>
+          <select id="new-user-market">
+            <option value="">— Select Market —</option>
+            ${MARKETS.map(m=>`<option value="${m}">${m}</option>`).join('')}
+          </select>
+        </div>
         <div class="ff"><label>Role</label>
           <select id="new-user-role">
-            <option value="member">Member — standard library access</option>
-            <option value="manager">Manager — can manage team members</option>
-            <option value="admin">Admin — full portal access</option>
+            <option value="member">Member</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
           </select>
         </div>
       </div>
       <button class="btn-green-lg" onclick="addTeamUser()" style="margin-top:12px">Add User</button>
     </div>
-    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;margin-bottom:12px;color:var(--black)">Current Team (${all.length})</div>
-    <div class="team-grid">${teamRows}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--black)">Current Team (${all.length})</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600">Filter:</label>
+        <select onchange="teamMarketFilter=this.value;renderManage()"
+          style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text);outline:none;cursor:pointer">
+          <option value="all">All Markets</option>
+          ${MARKETS.map(m=>`<option value="${m}" ${teamMarketFilter===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="vtable-wrap">
+      <table class="report-table">
+        <thead><tr><th>Name</th><th>Market</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
+        <tbody>${all.filter(u=>teamMarketFilter==='all'||u.market===teamMarketFilter).map((u,i)=>{
+          const isBuiltIn=SEED_USERS.some(s=>s.id===u.id);
+          const uid=u.username||u.id;
+          const roleCls=u.role==='admin'?'role-admin':u.role==='manager'?'role-manager':'role-member';
+          return `<tr>
+            <td><div style="display:flex;align-items:center;gap:8px">
+              <div style="width:26px;height:26px;border-radius:50%;background:${AVATAR_COLORS[i%AVATAR_COLORS.length]};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px;color:#fff;flex-shrink:0">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+              <div><div style="font-weight:600;font-size:13px">${u.name}${u.inactive?'<span style="margin-left:5px;font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px">Inactive</span>':''}</div>
+              <div style="font-size:11px;color:var(--muted)">${u.email||uid}</div></div>
+            </div></td>
+            <td style="font-size:12px;color:var(--muted)">${u.market||'—'}</td>
+            <td><span style="font-family:monospace;font-size:12px;background:var(--bg);padding:2px 7px;border-radius:4px;border:1px solid var(--border)">${uid}</span></td>
+            <td>${!isBuiltIn?`<span style="font-family:monospace;font-size:12px;background:var(--bg);padding:2px 7px;border-radius:4px;border:1px solid var(--border)">${u.pass||'—'}</span>`:'••••••'}</td>
+            <td><span class="team-role-badge ${roleCls}">${u.role}</span></td>
+            <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+              ${!isBuiltIn?`
+                <button class="btn-edit-user" onclick="openUserEditModal('${uid}')">✏</button>
+                <button class="btn-dup-user"  onclick="duplicateTeamUser('${uid}')">⧉</button>
+                <button class="btn-inactive-user ${u.inactive?'active-state':''}" onclick="toggleUserInactive('${uid}')">${u.inactive?'↑':'⊘'}</button>
+                <button class="team-del-btn" onclick="deleteTeamUser('${uid}')">✕</button>
+              `:'<span style="font-size:11px;color:var(--muted)">Built-in</span>'}
+            </div></td>
+          </tr>`;
+        }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No users.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="acard">
@@ -3868,6 +3979,11 @@ function renderAnalyticsPanel() {
     filtered = filtered.filter(e => e.userId === analyticsUserId);
   } else if (analyticsRole !== 'all') {
     filtered = filtered.filter(e => e.role === analyticsRole);
+  }
+  // Market filter — match events to users in that market
+  if (analyticsMarket !== 'all') {
+    const marketUserIds = new Set(allUsers().filter(u=>u.market===analyticsMarket).map(u=>u.id||u.username));
+    filtered = filtered.filter(e => marketUserIds.has(e.userId));
   }
 
   const viewEvts = filtered.filter(e => e.type === 'view');
@@ -3934,7 +4050,7 @@ function renderAnalyticsPanel() {
     allU.map(u => `<option value="${u.id||u.username}" ${analyticsUserId===(u.id||u.username)?'selected':''}>${u.name} (${u.role})</option>`).join('');
 
   // ── Active filter label ──────────────────────────────────────
-  let scopeLabel = 'All users';
+  let scopeLabel = analyticsMarket !== 'all' ? `📍 ${analyticsMarket}` : '🌐 Company Wide';
   if (analyticsUserId !== 'all') {
     const fu = allU.find(u=>(u.id||u.username)===analyticsUserId);
     scopeLabel = fu ? fu.name : analyticsUserId;
@@ -3977,9 +4093,11 @@ function renderAnalyticsPanel() {
         <div style="display:flex;gap:6px;flex-wrap:wrap">${roleButtons}</div>
       </div>
       <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:7px">Specific User</div>
-        <select onchange="setAnalyticsUser(this.value)" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text);outline:none;cursor:pointer;font-family:'DM Sans',sans-serif">
-          ${userOpts}
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:7px">Market / Team</div>
+        <select onchange="analyticsMarket=this.value;setAnalyticsRange(analyticsRange)"
+          style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;color:var(--text);outline:none;cursor:pointer;font-family:'DM Sans',sans-serif">
+          <option value="all">🌐 Company Wide</option>
+          ${MARKETS.map(m=>`<option value="${m}" ${analyticsMarket===m?'selected':''}>${m}</option>`).join('')}
         </select>
       </div>
       <div style="margin-left:auto;align-self:flex-end;display:flex;gap:8px;flex-wrap:wrap">
@@ -4354,10 +4472,10 @@ function _initAnalyticsCharts() {
     window.addEventListener('resize', window._analyticsResizeFn);
 }
 
-function setAnalyticsRange(days) { analyticsRange=days; renderManage(); }
+function setAnalyticsRange(days) { analyticsRange=days; refreshAnalytics(); }
 function setAnalyticsRole(role)   { analyticsRole=role; analyticsUserId='all'; renderManage(); }
 function setAnalyticsUser(uid)    { analyticsUserId=uid; if(uid!=='all') analyticsRole='all'; renderManage(); }
-function clearAnalyticsFilter()   { analyticsRole='all'; analyticsUserId='all'; renderManage(); }
+function clearAnalyticsFilter()   { analyticsRole='all'; analyticsUserId='all'; analyticsMarket='all'; renderManage(); }
 
 function exportAnalyticsCSV() {
   const events = getAnalyticsEvents();
@@ -4690,6 +4808,7 @@ function openUserEditModal(username) {
   if (!u) return;
   editingUserId = username;
   document.getElementById('user-edit-modal-title').textContent = `Edit User: ${u.name}`;
+  const marketOpts = MARKETS.map(m=>`<option value="${m}" ${u.market===m?'selected':''}>${m}</option>`).join('');
   document.getElementById('user-edit-modal-body').innerHTML = `
     <div class="form-grid" style="padding:0 0 20px">
       <div class="ff"><label>Full Name</label><input type="text" id="eu-name" value="${u.name}"/></div>
@@ -4697,6 +4816,8 @@ function openUserEditModal(username) {
       <div class="ff"><label>Username</label><input type="text" id="eu-uname" value="${u.username||u.id}" disabled style="opacity:.5;cursor:not-allowed"/></div>
       <div class="ff"><label>New Password <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(leave blank to keep)</span></label>
         <input type="password" id="eu-pass" placeholder="New password..."/></div>
+      <div class="ff"><label>Market</label>
+        <select id="eu-market"><option value="">— Select Market —</option>${marketOpts}</select></div>
       <div class="ff"><label>Role</label>
         <select id="eu-role">
           <option value="member" ${u.role==='member'?'selected':''}>Member</option>
@@ -5559,7 +5680,9 @@ async function sendWelcomeEmail({ name, email, username, pass, role }) {
 // ═══════════════════════════════════════════════════════════════
 //  ARCHIVE SYSTEM — Admin-only browsable section
 // ═══════════════════════════════════════════════════════════════
-let archiveFilter = 'all'; // 'all' | 'videos' | 'categories' | 'assets'
+let archiveFilter    = 'all';
+let teamMarketFilter = 'all';
+let analyticsMarket  = 'all'; // 'all' | 'videos' | 'categories' | 'assets'
 
 // ── Archive a single video ────────────────────────────────────
 function archiveVideo(id) {
