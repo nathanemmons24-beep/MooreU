@@ -1940,6 +1940,92 @@ function renderProfileOverview(u, uid) {
   const reqPct   = reqVids.length ? Math.round(reqDone/reqVids.length*100) : 100;
   const events   = getAnalyticsEvents().filter(e=>e.userId===uid&&e.type==='view');
   const totalHrs = Math.round(events.reduce((s,e)=>s+(e.durationSecs||0),0)/60);
+  const myAssign = getAssignments().filter(a=>a.userId===uid);
+  const overdue  = getOverdueAssignments(uid);
+
+  const reqList = reqVids.slice(0,5).map(v=>{
+    const done = watchedIds.has(String(v.id));
+    return '<div class="required-item" onclick="closeProfile();openModal(\''+v.id+'\')">'
+      +'<div class="required-check '+(done?'done':'')+'">'+( done?'✓':'')+'</div>'
+      +'<div class="required-item-title">'+v.title+'</div>'
+      +'<span style="font-size:11px;color:var(--muted)">'+v.duration+'</span>'
+      +'</div>';
+  }).join('');
+
+  const assignList = myAssign.slice(0,4).map(a=>{
+    const done2 = watchedIds.has(String(a.videoId));
+    const over2 = a.due&&!done2&&new Date(a.due+'T23:59')<new Date();
+    return '<div class="required-item" onclick="closeProfile();showPage(\'tasks\')">'
+      +'<div class="required-check '+(done2?'done':'')+'" style="'+(over2?'background:#c0392b;border-color:#c0392b':'')+'">'+( done2?'✓':over2?'!':'')+'</div>'
+      +'<div class="required-item-title">'+a.videoTitle+'</div>'
+      +'<span style="font-size:11px;color:'+(over2?'var(--red)':'var(--muted)')+'">'+( a.due||'No date')+'</span>'
+      +'</div>';
+  }).join('');
+
+  const certBanner = canGetCertificate(uid)
+    ? '<div style="background:linear-gradient(135deg,var(--green),var(--green-dark));border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;color:#fff;margin-bottom:16px">'
+      +'<span style="font-size:24px">🏅</span>'
+      +'<div style="flex:1"><div style="font-weight:800;font-size:14px">Certificate Ready!</div><div style="font-size:12px;opacity:.8">All required training complete</div></div>'
+      +'<button onclick="downloadCertificate(\''+uid+'\')" style="background:#fff;color:var(--green);border:none;border-radius:8px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer">Download</button>'
+      +'</div>'
+    : '';
+
+  const reqSection = reqVids.length
+    ? '<div class="profile-section">'
+      +'<div class="profile-section-hdr">⭐ Required Training'
+      +'<span style="margin-left:auto;font-weight:400;font-size:12px;color:'+(reqPct===100?'var(--green)':'var(--muted)')+'">'+reqDone+'/'+reqVids.length+' ('+reqPct+'%)</span>'
+      +'</div>'
+      +'<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:14px">'
+      +'<div style="height:100%;width:'+reqPct+'%;background:'+(reqPct===100?'var(--green)':'var(--amber)')+';border-radius:3px"></div>'
+      +'</div>'
+      +'<div class="required-list">'+reqList+'</div>'
+      +'</div>'
+    : '';
+
+  const overdueSpan = overdue.length
+    ? '<span style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:5px;font-size:10px;padding:1px 7px;font-weight:700;margin-left:6px">'+overdue.length+' overdue</span>'
+    : '';
+
+  const assignSection = myAssign.length
+    ? '<div class="profile-section">'
+      +'<div class="profile-section-hdr">📋 Assignments'+overdueSpan
+      +'<button onclick="closeProfile();showPage(\'tasks\')" style="margin-left:auto;background:none;border:none;color:var(--green);font-size:12px;cursor:pointer;font-weight:700">View all</button>'
+      +'</div>'
+      +'<div class="required-list">'+assignList+'</div>'
+      +'</div>'
+    : '';
+
+  const bookmarkSection = bookmarkIds.size
+    ? (()=>{
+        const bmCards = videos.filter(v=>bookmarkIds.has(String(v.id))).slice(0,4).map(v=>{
+          const t = bestThumb(v);
+          const thumbHtml = t
+            ? '<img src="'+t+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">'
+            : '<div style="position:absolute;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center">🔖</div>';
+          return '<div class="related-item" onclick="closeProfile();openModal(\''+v.id+'\')">'
+            +'<div class="related-thumb">'+thumbHtml+'</div>'
+            +'<div class="related-title-text">'+v.title+'</div>'
+            +'<span class="related-dur">'+v.duration+'</span>'
+            +'</div>';
+        }).join('');
+        return '<div class="profile-section">'
+          +'<div class="profile-section-hdr">🔖 Bookmarks</div>'
+          +'<div class="related-list">'+bmCards+'</div>'
+          +'</div>';
+      })()
+    : '';
+
+  return '<div class="profile-section">'
+    + certBanner
+    +'<div class="profile-stat-row">'
+    +'<div class="profile-stat"><div class="profile-stat-num">'+watched+'</div><div class="profile-stat-label">Watched</div></div>'
+    +'<div class="profile-stat"><div class="profile-stat-num">'+totalHrs+'m</div><div class="profile-stat-label">Minutes</div></div>'
+    +'<div class="profile-stat"><div class="profile-stat-num">'+bmarks+'</div><div class="profile-stat-label">Bookmarks</div></div>'
+    +'</div></div>'
+    + reqSection
+    + assignSection
+    + bookmarkSection;
+}
 
   const myAssign = getAssignments().filter(a=>a.userId===uid);
   const pending  = myAssign.filter(a=>{let w=new Set();try{w=new Set(JSON.parse(localStorage.getItem('mhu_u_'+uid+'_watched')||'[]'));}catch(e){}return !w.has(a.videoId);});
@@ -1962,57 +2048,6 @@ function renderProfileOverview(u, uid) {
       <span style="font-size:11px;color:${over2?'var(--red)':'var(--muted)'}">${a.due||'No date'}</span>
     </div>`;
   }).join('');
-
-  const certBanner = canGetCertificate(uid) ? `
-    <div style="background:linear-gradient(135deg,var(--green),var(--green-dark));border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;color:#fff;margin-bottom:0">
-      <span style="font-size:24px">🏅</span>
-      <div style="flex:1"><div style="font-weight:800;font-size:14px">Certificate Ready!</div><div style="font-size:12px;opacity:.8">All required training complete</div></div>
-      <button onclick="downloadCertificate('${uid}')" style="background:#fff;color:var(--green);border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:800;cursor:pointer">Download</button>
-    </div>` : '';
-
-  return `
-    <div class="profile-section">
-      ${certBanner ? certBanner+'<div style="height:16px"></div>' : ''}
-      <div class="profile-stat-row">
-        <div class="profile-stat"><div class="profile-stat-num">${watched}</div><div class="profile-stat-label">Watched</div></div>
-        <div class="profile-stat"><div class="profile-stat-num">${totalHrs}m</div><div class="profile-stat-label">Minutes</div></div>
-        <div class="profile-stat"><div class="profile-stat-num">${bmarks}</div><div class="profile-stat-label">Bookmarks</div></div>
-      </div>
-    </div>
-    ${reqVids.length ? `
-    <div class="profile-section">
-      <div class="profile-section-hdr">⭐ Required Training
-        <span style="margin-left:auto;font-weight:400;font-size:12px;color:${reqPct===100?'var(--green)':'var(--muted)'}">${reqDone}/${reqVids.length} · ${reqPct}%</span>
-      </div>
-      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-bottom:14px">
-        <div style="height:100%;width:${reqPct}%;background:${reqPct===100?'var(--green)':'var(--amber)'};border-radius:3px;transition:width .6s ease"></div>
-      </div>
-      <div class="required-list">${reqList}</div>
-    </div>` : ''}
-    ${myAssign.length ? `
-    <div class="profile-section">
-      <div class="profile-section-hdr">📋 Assignments
-        ${overdue.length?`<span style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:10px;padding:1px 8px;font-size:11px">${overdue.length} overdue</span>`:''}
-        <button onclick="closeProfile();showPage('tasks')" style="margin-left:auto;background:none;border:none;color:var(--green);font-size:12px;font-weight:700;cursor:pointer">View All →</button>
-      </div>
-      <div class="required-list">${assignList}</div>
-    </div>` : ''}
-    ${bookmarkIds.size ? `
-    <div class="profile-section">
-      <div class="profile-section-hdr">🔖 Bookmarks</div>
-      <div class="related-list">
-        ${videos.filter(v=>bookmarkIds.has(String(v.id))).slice(0,4).map(v=>{
-          const t=bestThumb(v);
-          return `<div class="related-item" onclick="closeProfile();openModal('${v.id}')">
-            <div class="related-thumb">${t?`<img src="${t}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;"/>`:''}}</div>
-            <div class="related-title-text">${v.title}</div>
-            <span class="related-dur">${v.duration}</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>` : ''}`;
-}
-
 function renderProfilePreferences() {
   const isDark   = document.body.classList.contains('dark');
   const notifOn  = localStorage.getItem('mhu_notif_pref') !== 'off';
@@ -2103,36 +2138,42 @@ function renderProfileSecurity(u, uid) {
   const isBuiltIn = SEED_USERS.some(s=>s.id===uid);
   const loginLog  = getLoginLog().filter(e=>e.username===uid||e.username===(u.username||u.id)).slice(0,5);
 
-  return `
-    <div class="profile-section">
-      <div class="profile-section-hdr">🔐 Change Password</div>
-      ${isBuiltIn ? `<div style="background:var(--amber-bg);border:1.5px solid var(--amber-border);border-radius:10px;padding:12px 14px;font-size:13px;color:${`var(--amber)`}">Built-in demo accounts cannot change their password.</div>` : `
-      <div class="pass-form">
-        <input class="pass-input" type="password" id="prof-cur-pass" placeholder="Current password"/>
-        <div>
-          <input class="pass-input" type="password" id="prof-new-pass" placeholder="New password (min. 8 characters)" oninput="updatePassStrength(this.value)" style="width:100%"/>
-          <div class="pass-strength"><div class="pass-strength-fill" id="pass-strength-bar" style="width:0%;background:var(--red)"></div></div>
-          <div class="pass-hint" id="pass-strength-txt">Enter a new password</div>
-        </div>
-        <input class="pass-input" type="password" id="prof-conf-pass" placeholder="Confirm new password"/>
-        <button class="profile-save-btn" onclick="saveProfilePassword()">Update Password</button>
-      </div>`}
-    </div>
-    <div class="profile-section">
-      <div class="profile-section-hdr">🕐 Recent Sign-ins</div>
-      ${loginLog.length ? loginLog.map(e=>{
-        const d=new Date(e.time);
-        return `<div class="activity-item">
-          <div class="activity-dot" style="background:var(--green)"></div>
-          <div class="activity-text">Signed in as <strong>${e.user}</strong></div>
-          <div class="activity-time">${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})} ${d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
-        </div>`;
-      }).join('') : '<p style="font-size:13px;color:var(--muted)">No sign-in history.</p>'}
-    </div>
-    <div class="profile-section">
-      <div class="profile-section-hdr" style="color:var(--red)">⚠ Danger Zone</div>
-      <button class="profile-danger-btn" onclick="if(confirm('Sign out of all sessions?')){doLogout(true);}">Sign Out</button>
-    </div>`;
+  const passSection = isBuiltIn
+    ? '<div style="background:var(--amber-bg);border:1.5px solid var(--amber-border);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--amber-text)">Built-in accounts cannot change their password.</div>'
+    : '<div class="pass-form">'
+      +'<input class="pass-input" type="password" id="prof-cur-pass" placeholder="Current password"/>'
+      +'<div>'
+      +'<input class="pass-input" type="password" id="prof-new-pass" placeholder="New password (min. 8 characters)" oninput="checkPassStrength(this.value)"/>'
+      +'<div class="pass-strength"><div class="pass-strength-fill" id="pass-strength-bar" style="width:0%;background:var(--red)"></div></div>'
+      +'<div class="pass-hint" id="pass-strength-txt">Enter a new password</div>'
+      +'</div>'
+      +'<input class="pass-input" type="password" id="prof-conf-pass" placeholder="Confirm new password"/>'
+      +'<button class="profile-save-btn" onclick="saveProfilePassword()">Update Password</button>'
+      +'</div>';
+
+  const loginItems = loginLog.length
+    ? loginLog.map(function(entry) {
+        const d = new Date(entry.time);
+        return '<div class="activity-item">'
+          +'<div class="activity-dot" style="background:var(--green)"></div>'
+          +'<div class="activity-text">Signed in as <strong>'+entry.user+'</strong></div>'
+          +'<div class="activity-time">'+d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</div>'
+          +'</div>';
+      }).join('')
+    : '<p style="font-size:13px;color:var(--muted)">No sign-in history.</p>';
+
+  return '<div class="profile-section">'
+    +'<div class="profile-section-hdr">🔐 Change Password</div>'
+    + passSection
+    +'</div>'
+    +'<div class="profile-section">'
+    +'<div class="profile-section-hdr">🕐 Recent Sign-ins</div>'
+    + loginItems
+    +'</div>'
+    +'<div class="profile-section">'
+    +'<div class="profile-section-hdr" style="color:var(--red)">⚠ Danger Zone</div>'
+    +'<button class="profile-danger-btn" onclick="if(confirm(\'Sign out of all sessions?\'))doLogout(true)">Sign Out</button>'
+    +'</div>';
 }
 
 function renderProfileActivity(uid) {
@@ -2615,7 +2656,7 @@ function refreshNavManage() {
       if (archEl) {
         const archCount = videos.filter(v=>v.archived).length;
         archEl.style.display='flex';
-        archEl.innerHTML=`📦 Archive${archCount?` <span style="background:rgba(245,158,11,.15);color:#f59e0b;border-radius:10px;padding:0 5px;font-size:11px;margin-left:4px">${archCount}</span>`:''}`;
+        archEl.innerHTML='📦 Archive'+(archCount?'<span style="background:rgba(245,158,11,.15);color:#f59e0b;border-radius:10px;padding:0 5px;font-size:11px;margin-left:4px">'+archCount+'</span>':'');
       }
     } else if (role === 'manager') {
       el.style.display='flex'; el.innerHTML='⚙️ Settings';
