@@ -2850,7 +2850,7 @@ function videoCard(v, m) {
     <div class="vinfo">
       <div style="display:flex;align-items:flex-start;gap:4px">
         <div class="vtitle" style="flex:1">${v.title}${v.required?'<span class="required-star">★</span>':''}</div>
-        <button class="bookmark-btn" onclick="event.stopPropagation();toggleBookmark(${v.id})" title="${bookmarked?'Remove bookmark':'Bookmark'}">${bookmarked?'🔖':'🏷️'}</button>
+        <button class="bookmark-btn" onclick="event.stopPropagation();toggleBookmark('${v.id}')" title="${bookmarked?'Remove bookmark':'Bookmark'}">${bookmarked?'🔖':'🏷️'}</button>
       </div>
       <div class="vdesc">${v.desc}</div>
       ${tagsHTML}
@@ -3071,7 +3071,7 @@ function renderVideosPanel() {
     const isChecked = selectedIds.has(v.id);
     const isFeat = v.featured; const expired = isExpired(v);
     return `<tr class="${isChecked?'selected':''}" draggable="true"
-      ondragstart="dragStart(event,${v.id})" ondragover="dragOver(event)" ondrop="dragDrop(event,${v.id})" ondragend="dragEnd(event)">
+      ondragstart="dragStart(event,'${v.id}')" ondragover="dragOver(event)" ondrop="dragDrop(event,'${v.id}')" ondragend="dragEnd(event)">
       <td><span class="drag-handle" title="Drag to reorder">⠿</span></td>
       <td><input type="checkbox" ${isChecked?'checked':''} onchange="toggleSelect(${v.id},this.checked)"/></td>
       <td style="color:var(--muted);font-size:12px">${v.id}</td>
@@ -3089,10 +3089,10 @@ function renderVideosPanel() {
       <td style="color:var(--muted);font-size:12px">${(v.files||[]).length ? `📎 ${v.files.length}` : '—'}</td>
       <td>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-          <button class="feat-btn ${isFeat?'on':''}" onclick="toggleFeatured(${v.id})" title="${isFeat?'Remove featured':'Set featured'}">⭐</button>
-          <button class="edit-btn" onclick="openEditModal(${v.id})">✏ Edit</button>
-          <button class="edit-btn" onclick="duplicateVideo(${v.id})" title="Duplicate">⧉</button>
-          <button class="del-btn" onclick="deleteVideo(${v.id})">Del</button>
+          <button class="feat-btn ${isFeat?'on':''}" onclick="toggleFeatured('${v.id}')" title="${isFeat?'Remove featured':'Set featured'}">⭐</button>
+          <button class="edit-btn" onclick="openEditModal('${v.id}')">✏ Edit</button>
+          <button class="edit-btn" onclick="duplicateVideo('${v.id}')" title="Duplicate">⧉</button>
+          <button class="del-btn" onclick="deleteVideo('${v.id}')">Del</button>
         </div>
       </td>
     </tr>`;
@@ -3246,8 +3246,10 @@ function addVideo() {
 }
 
 function duplicateVideo(id) {
-  const v = videos.find(x=>x.id===id); if (!v) return;
-  const newId = Math.max(0,...videos.map(x=>x.id))+1;
+  const sid = String(id);
+  const v = videos.find(x=>String(x.id)===sid); if (!v) return;
+  // Generate a temporary unique ID (will be replaced by Supabase UUID on save)
+  const newId = 'tmp_' + Date.now();
   videos.push({ ...JSON.parse(JSON.stringify(v)), id:newId,
     title:'Copy of ' + v.title, featured:false, addedAt:new Date().toISOString(), sortOrder:videos.length });
   showToast('⏳ Saving…');
@@ -3257,7 +3259,7 @@ function duplicateVideo(id) {
 
 // ─── Drag-to-Reorder ──────────────────────────────────────────
 let _dragId = null;
-function dragStart(e, id) { _dragId = id; e.currentTarget.classList.add('dragging'); }
+function dragStart(e, id) { _dragId = String(id); e.currentTarget.classList.add('dragging'); }
 function dragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over')); }
 function dragOver(e) {
   e.preventDefault();
@@ -3267,9 +3269,9 @@ function dragOver(e) {
 function dragDrop(e, targetId) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
-  if (_dragId === null || _dragId === targetId) return;
-  const fromIdx = videos.findIndex(v=>v.id===_dragId);
-  const toIdx   = videos.findIndex(v=>v.id===targetId);
+  if (_dragId === null || String(_dragId) === String(targetId)) return;
+  const fromIdx = videos.findIndex(v=>String(v.id)===String(_dragId));
+  const toIdx   = videos.findIndex(v=>String(v.id)===String(targetId));
   if (fromIdx<0||toIdx<0) return;
   const [moved] = videos.splice(fromIdx,1);
   videos.splice(toIdx,0,moved);
@@ -3280,17 +3282,21 @@ function dragDrop(e, targetId) {
 }
 
 function deleteVideo(id) {
+  const sid = String(id);
   if (!confirm('Remove this resource?')) return;
-  videos=videos.filter(v=>v.id!==id);
-  selectedIds.delete(id);
-  saveData();
-  showToast('🗑 Video deleted and saved!');
+  // Also delete from Supabase
+  const v = videos.find(x=>String(x.id)===sid);
+  if (v) dbDelVideo(v.id);
+  videos = videos.filter(v=>String(v.id)!==sid);
+  selectedIds.delete(sid);
+  showToast('🗑 Video deleted');
   renderManage();
 }
 
 // ─── Featured Toggle ──────────────────────────────────────────
 function toggleFeatured(id) {
-  const v = videos.find(x=>x.id===id); if (!v) return;
+  const sid = String(id);
+  const v = videos.find(x=>String(x.id)===sid); if (!v) return;
   const featCount = videos.filter(x=>x.featured).length;
   if (!v.featured && featCount >= 3) {
     showToast('⚠ Max 3 featured videos. Remove one first.');
@@ -3304,8 +3310,9 @@ function toggleFeatured(id) {
 
 // ─── Edit Modal ───────────────────────────────────────────────
 function openEditModal(id) {
-  const v = videos.find(x=>x.id===id); if (!v) return;
-  editVideoId = id;
+  const sid = String(id);
+  const v = videos.find(x=>String(x.id)===sid); if (!v) return;
+  editVideoId = sid;
   editStagedFiles = [];
   editRemovedAssets = new Set();
   editNewThumb = '';
@@ -3438,7 +3445,7 @@ function removeEditAsset(i) {
 }
 
 function saveEdit() {
-  const v = videos.find(x=>x.id===editVideoId); if (!v) return;
+  const v = videos.find(x=>String(x.id)===String(editVideoId)); if (!v) return;
   // Read updated labels for existing assets from inputs
   (v.files||[]).forEach((f,i) => {
     const inp = document.getElementById(`asset-name-${i}`);
