@@ -1061,7 +1061,7 @@ async function syncFromDB(){
     // Categories
     const cRows=await dbGetCategories()||[];
     cats={};
-    cRows.forEach(c=>{cats[c.name]={icon:c.icon,color:c.color,bg:c.bg,gradient:c.gradient,_id:c.id};});
+    cRows.forEach(c=>{cats[c.name]={icon:c.icon,color:c.color,bg:c.bg,gradient:c.gradient,_id:c.id,archived:c.archived||false};});
     if(!cRows.length){cats=clone(DEFAULT_CATS);}
 
     // Videos + files
@@ -1262,7 +1262,7 @@ async function saveData(){
   showSyncStatus('Saving to cloud…');
   try{
     for(const[name,m]of Object.entries(cats)){
-      await dbSaveCat({id:m._id||undefined,name,icon:m.icon,color:m.color,bg:m.bg,gradient:m.gradient,sort_order:Object.keys(cats).indexOf(name)});
+      await dbSaveCat({id:m._id||undefined,name,icon:m.icon,color:m.color,bg:m.bg,gradient:m.gradient,archived:m.archived||false,sort_order:Object.keys(cats).indexOf(name)});
     }
     for(const v of videos){
       const isUuid=/^[0-9a-f-]{36}$/.test(String(v.id));
@@ -1739,7 +1739,7 @@ function effectiveRole() {
 // Categories visible to effective role
 function visibleCats() {
   const role = effectiveRole();
-  return Object.keys(cats).filter(c => roleCanSeeCat(role, c));
+  return Object.keys(cats).filter(c => roleCanSeeCat(role, c) && !cats[c]?.archived);
 }
 
 // ─── Dark Mode ────────────────────────────────────────────────
@@ -2504,7 +2504,7 @@ function exitPreview() {
 function renderSidebar() {
   refreshNavManage();
   const role = effectiveRole();
-  const vcats = Object.keys(cats).filter(c => roleCanSeeCat(role, c));
+  const vcats = Object.keys(cats).filter(c => roleCanSeeCat(role, c) && !cats[c]?.archived);
   const canSeeAssets = roleCanSeeAssets(role);
   const allAssetsRaw = [];
   if (canSeeAssets) {
@@ -2688,6 +2688,7 @@ function renderHome() {
   // ── Normal video view ─────────────────────────────────────────
   const filtered = videos.filter(v => {
     if (!videoVisible(v)) return false;  // hide expired + scheduled
+    if (cats[v.category]?.archived) return false;  // hide archived category
     const catVisible = vcats.includes(v.category);
     const mc = activeFilter === 'All' ? catVisible : v.category === activeFilter;
     const mq = !searchQuery || [v.title, v.category, v.desc, ...(v.tags||[])].join(' ').toLowerCase().includes(searchQuery);
@@ -3541,7 +3542,7 @@ function bulkMove() {
 //  CATEGORIES PANEL
 // ═══════════════════════════════════════════════════════════════
 function renderCatsPanel() {
-  const catList=Object.keys(cats);
+  const catList=Object.keys(cats).filter(c=>!cats[c]?.archived);
   const catCards=catList.map(c => {
     const m=cats[c], count=videos.filter(v=>v.category===c).length, canDel=catList.length>1;
     return `<div class="cat-card" draggable="true"
@@ -3983,7 +3984,7 @@ function renderAnalyticsPanel() {
       </div>
       <div style="margin-left:auto;align-self:flex-end;display:flex;gap:8px;flex-wrap:wrap">
         <button class="export-btn" onclick="refreshAnalytics()" style="background:rgba(74,124,63,.1);border-color:rgba(74,124,63,.3);color:var(--green)">🔄 Refresh</button>
-        ${currentUser?.role==='admin' ? `<button class="export-btn" onclick="seedAnalyticsToDB()" style="background:rgba(124,58,237,.08);border-color:rgba(124,58,237,.2);color:#7c3aed" title="Populate with demo data to preview charts">🌱 Seed Demo Data</button>` : ''}
+
         <button class="export-btn" onclick="exportAnalyticsCSV()">⬇ Export CSV</button>
       </div>
     </div>
@@ -4002,10 +4003,10 @@ function renderAnalyticsPanel() {
     <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--text);margin-bottom:8px">No Analytics Data Yet</div>
     <div style="font-size:14px;color:var(--muted);max-width:400px;margin:0 auto 24px;line-height:1.6">
       Analytics are recorded as your team watches videos and downloads files. 
-      Click <strong>Seed Demo Data</strong> to populate sample data so you can preview how the charts look.
+      Analytics will populate automatically as your team watches videos and downloads files.
     </div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      ${currentUser?.role==='admin' ? `<button class="btn-green-lg" style="margin:0" onclick="seedAnalyticsToDB()">🌱 Seed Demo Data</button>` : ''}
+
       <button onclick="refreshAnalytics()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 22px;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;cursor:pointer">🔄 Refresh</button>
     </div>
   </div>
@@ -5578,7 +5579,10 @@ function archiveVideo(id) {
 // ── Archive a whole category (archives all its videos) ────────
 function archiveCategory(catName) {
   const catVideos = videos.filter(v=>v.category===catName&&!v.archived);
-  if (!confirm(`Archive category "${catName}"?\n\n${catVideos.length} video${catVideos.length!==1?'s':''} will be hidden from all users. All data is preserved.`)) return;
+  if (!confirm(`Archive category "${catName}"?\n\n${catVideos.length} video${catVideos.length!==1?'s':''} will be hidden from all users. All data is preserved. You can restore from the Archive section.`)) return;
+  // Mark category itself as archived
+  if (cats[catName]) cats[catName].archived = true;
+  // Archive all its videos
   catVideos.forEach(v => {
     v.archived = true; v.featured = false;
     dbSaveVideo({ id:v.id, title:v.title, category:v.category, url:v.url||'', thumb:v.thumb||'',
@@ -5586,6 +5590,11 @@ function archiveCategory(catName) {
       featured:false, expires_at:v.expiresAt||null, publish_at:v.publishAt||null,
       archived:true, sort_order:v.sortOrder||0, added_at:v.addedAt||new Date().toISOString() });
   });
+  // Save category archived flag to Supabase
+  dbSaveCat({ id:cats[catName]?._id, name:catName, icon:cats[catName]?.icon||'📁',
+    color:cats[catName]?.color||'#4a7c3f', bg:cats[catName]?.bg||'rgba(74,124,63,.12)',
+    gradient:cats[catName]?.gradient||'#1a1a1a,#2a2a2a', archived:true,
+    sort_order:Object.keys(cats).indexOf(catName) });
   showToast(`📦 Category "${catName}" archived — ${catVideos.length} video${catVideos.length!==1?'s':''} hidden`);
   refreshNavManage(); renderManage();
 }
@@ -5617,6 +5626,8 @@ function restoreVideo(id) {
 
 function restoreCategoryVideos(catName) {
   const catVideos = videos.filter(v=>v.category===catName&&v.archived);
+  // Unarchive category in cats object
+  if (cats[catName]) cats[catName].archived = false;
   catVideos.forEach(v => {
     v.archived = false;
     dbSaveVideo({ id:v.id, title:v.title, category:v.category, url:v.url||'', thumb:v.thumb||'',
@@ -5624,6 +5635,11 @@ function restoreCategoryVideos(catName) {
       featured:false, expires_at:v.expiresAt||null, publish_at:v.publishAt||null,
       archived:false, sort_order:v.sortOrder||0, added_at:v.addedAt||new Date().toISOString() });
   });
+  // Save category unarchived to Supabase
+  dbSaveCat({ id:cats[catName]?._id, name:catName, icon:cats[catName]?.icon||'📁',
+    color:cats[catName]?.color||'#4a7c3f', bg:cats[catName]?.bg||'rgba(74,124,63,.12)',
+    gradient:cats[catName]?.gradient||'#1a1a1a,#2a2a2a', archived:false,
+    sort_order:Object.keys(cats).indexOf(catName) });
   showToast(`✅ ${catVideos.length} video${catVideos.length!==1?'s':''} from "${catName}" restored`);
   refreshNavManage(); renderArchivePage();
 }
