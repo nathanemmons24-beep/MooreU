@@ -264,6 +264,10 @@
   .vtable .tc .nth{width:62px;height:38px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:18px;}
   .del-btn{background:none;border:1.5px solid var(--red-border);color:var(--red);border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
   .del-btn:hover{background:var(--red-bg);}
+  .archive-btn{background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+  .archive-btn:hover{border-color:#f59e0b;color:#f59e0b;background:#fffbeb;}
+  .restore-btn{background:none;border:1.5px solid rgba(74,124,63,.3);color:var(--green);border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+  .restore-btn:hover{background:var(--green-bg);}
 
   /* Featured star toggle */
   .feat-btn{background:none;border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:14px;cursor:pointer;transition:all .2s;line-height:1;title:'Toggle Featured';}
@@ -839,6 +843,7 @@
     <div class="sidebar">
       <div class="sb-label">Navigation</div>
       <div class="nav-item active" onclick="showPage('home')" id="nav-home">📚 Resource Library</div>
+      <div class="nav-item" onclick="showPage('archive')" id="nav-archive" style="display:none">📦 Archive</div>
       <div class="nav-item" onclick="showPage('tasks')" id="nav-tasks" style="display:none">📋 My Tasks</div>
       <div class="nav-item" onclick="showPage('manage')" id="nav-manage" style="display:none"><span id="nav-manage-label">⚙️ Settings</span></div>
       <hr class="nav-div">
@@ -1066,6 +1071,7 @@ async function syncFromDB(){
       id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
       duration:v.duration,desc:v.description,tags:v.tags||[],required:v.required,
       featured:v.featured,expiresAt:v.expires_at||'',publishAt:v.publish_at||'',
+      archived:v.archived||false,
       sortOrder:v.sort_order,addedAt:v.added_at,
       files:fRows.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label,type:f.file_type,size:f.file_size,data:f.data}))
     }));
@@ -1260,7 +1266,7 @@ async function saveData(){
     }
     for(const v of videos){
       const isUuid=/^[0-9a-f-]{36}$/.test(String(v.id));
-      const saved=await dbSaveVideo({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,sort_order:v.sortOrder||0,added_at:v.addedAt||new Date().toISOString()});
+      const saved=await dbSaveVideo({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,archived:!!v.archived,sort_order:v.sortOrder||0,added_at:v.addedAt||new Date().toISOString()});
       const savedId=saved?.[0]?.id||v.id;
       for(let fi=0;fi<(v.files||[]).length;fi++){const f=v.files[fi];await dbSaveFile({id:f._id||undefined,video_id:savedId,name:f.name,label:f.label||f.name,file_type:f.type||'',file_size:f.size||0,data:f.data,sort_order:fi});}
     }
@@ -2263,6 +2269,7 @@ function downloadAsset(videoId, fileIdx) { downloadFile(videoId, fileIdx); }
 function dedupeAssets(rawAssets) {
   const seen = new Set();
   return rawAssets.filter(a => {
+    if (a.archived) return false; // hide archived assets
     const key = (a.label||a.name).toLowerCase().trim();
     if (seen.has(key)) return false;
     seen.add(key);
@@ -2443,18 +2450,19 @@ function bestThumb(v) { return v.thumb || ytThumb(v.url); }
 // ═══════════════════════════════════════════════════════════════
 function showPage(pg) {
   const role = currentUser?.role;
-  // Block manage page if previewing any role, or if member
-  if (pg === 'manage' && (previewRole || (role !== 'admin' && role !== 'manager'))) pg = 'home';
-  // Block tasks page for admin when not previewing
-  if (pg === 'tasks' && role === 'admin' && !previewRole) pg = 'home';
+  if (pg === 'manage'  && (previewRole || (role !== 'admin' && role !== 'manager'))) pg = 'home';
+  if (pg === 'tasks'   && role === 'admin' && !previewRole) pg = 'home';
+  if (pg === 'archive' && (role !== 'admin' || previewRole)) pg = 'home';
 
-  document.getElementById('nav-home').classList.toggle('active', pg==='home');
-  document.getElementById('nav-manage').classList.toggle('active', pg==='manage');
+  document.getElementById('nav-home').classList.toggle('active',    pg==='home');
+  document.getElementById('nav-manage').classList.toggle('active',  pg==='manage');
+  document.getElementById('nav-archive').classList.toggle('active', pg==='archive');
   const navTasks = document.getElementById('nav-tasks');
   if (navTasks) navTasks.classList.toggle('active', pg==='tasks');
 
-  if (pg==='home') { selectedIds.clear(); updateBulkBar(); renderHome(); }
-  else if (pg==='tasks') renderTasksPage();
+  if      (pg==='home')    { selectedIds.clear(); updateBulkBar(); renderHome(); }
+  else if (pg==='tasks')   renderTasksPage();
+  else if (pg==='archive') renderArchivePage();
   else renderManage();
 }
 function onSearch() { searchQuery=(document.getElementById('search-input')?.value||'').toLowerCase(); renderHome(); }
@@ -2515,40 +2523,42 @@ function renderSidebar() {
       : '');
 }
 function refreshNavManage() {
-  // Use the REAL role (not preview) for nav — preview is visual only for home page
   const role    = currentUser?.role;
-  const effRole = previewRole || role; // effective role for nav during preview
   const el      = document.getElementById('nav-manage');
   const tasksEl = document.getElementById('nav-tasks');
-  const prevBtns = document.getElementById('preview-btns');
+  const archEl  = document.getElementById('nav-archive');
+  const prevBtns= document.getElementById('preview-btns');
 
   if (!el) return;
 
   if (previewRole) {
-    // ── PREVIEW MODE: show the nav as the previewed role would see it ──
-    if (prevBtns) prevBtns.classList.remove('on'); // hide preview buttons during preview
+    if (prevBtns) prevBtns.classList.remove('on');
+    if (archEl) archEl.style.display = 'none';
     if (previewRole === 'member') {
       el.style.display = 'none';
-      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+      if (tasksEl) { tasksEl.style.display='flex'; updateTasksBadge(tasksEl); }
     } else if (previewRole === 'manager') {
-      el.style.display = 'flex';
-      el.innerHTML = '⚙️ Settings';
-      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+      el.style.display='flex'; el.innerHTML='⚙️ Settings';
+      if (tasksEl) { tasksEl.style.display='flex'; updateTasksBadge(tasksEl); }
     }
   } else {
-    // ── REAL ROLE ─────────────────────────────────────────────
-    if (prevBtns && role === 'admin') prevBtns.classList.add('on');
+    if (prevBtns && role==='admin') prevBtns.classList.add('on');
     if (role === 'admin') {
-      el.style.display = 'flex';
-      el.innerHTML = '⚙️ Settings';
-      if (tasksEl) tasksEl.style.display = 'none';
+      el.style.display='flex'; el.innerHTML='⚙️ Settings';
+      if (tasksEl) tasksEl.style.display='none';
+      if (archEl) {
+        const archCount = videos.filter(v=>v.archived).length;
+        archEl.style.display='flex';
+        archEl.innerHTML=`📦 Archive${archCount?` <span style="background:rgba(245,158,11,.15);color:#f59e0b;border-radius:10px;padding:0 5px;font-size:11px;margin-left:4px">${archCount}</span>`:''}`;
+      }
     } else if (role === 'manager') {
-      el.style.display = 'flex';
-      el.innerHTML = '⚙️ Settings';
-      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+      el.style.display='flex'; el.innerHTML='⚙️ Settings';
+      if (archEl) archEl.style.display='none';
+      if (tasksEl) { tasksEl.style.display='flex'; updateTasksBadge(tasksEl); }
     } else {
-      el.style.display = 'none';
-      if (tasksEl) { tasksEl.style.display = 'flex'; updateTasksBadge(tasksEl); }
+      el.style.display='none';
+      if (archEl) archEl.style.display='none';
+      if (tasksEl) { tasksEl.style.display='flex'; updateTasksBadge(tasksEl); }
     }
   }
 }
@@ -2916,6 +2926,7 @@ function openModal(id) {
           <div class="attach-icon">${fileIcon(f.type,f.label||f.name)}</div>
           <div class="attach-info"><div class="attach-name">${f.label||f.name}</div><div class="attach-size">${formatBytes(f.size)}</div></div>
           <button class="attach-dl-btn" onclick="downloadFile('${v.id}',${i})">⬇ Download</button>
+          ${currentUser?.role==='admin'?`<button onclick="archiveAsset('${v.id}',${i})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer" title="Archive this asset">📦</button>`:''}
         </div>`).join('')}
       </div>
     </div>`;
@@ -3063,9 +3074,10 @@ function switchTab(t) {
 // ═══════════════════════════════════════════════════════════════
 function renderVideosPanel() {
   const catOpts = Object.keys(cats).map(c=>`<option>${c}</option>`).join('');
-  const allIds = videos.map(v=>v.id);
+  const activeVideos = videos.filter(v => !v.archived);
+  const allIds = activeVideos.map(v=>v.id);
   const allChecked = allIds.length>0 && allIds.every(id=>selectedIds.has(id));
-  const rows = videos.map(v => {
+  const rows = activeVideos.map(v => {
     const t=bestThumb(v); const catM=cats[v.category]||{gradient:'#1a1a1a,#2a2a2a',icon:'📁'};
     const tc = t ? `<img src="${t}" onerror="this.style.display='none'">` : `<div class="nth" style="background:linear-gradient(135deg,${catM.gradient})">${catM.icon}</div>`;
     const isChecked = selectedIds.has(v.id);
@@ -3092,7 +3104,8 @@ function renderVideosPanel() {
           <button class="feat-btn ${isFeat?'on':''}" onclick="toggleFeatured('${v.id}')" title="${isFeat?'Remove featured':'Set featured'}">⭐</button>
           <button class="edit-btn" onclick="openEditModal('${v.id}')">✏ Edit</button>
           <button class="edit-btn" onclick="duplicateVideo('${v.id}')" title="Duplicate">⧉</button>
-          <button class="del-btn" onclick="deleteVideo('${v.id}')">Del</button>
+          <button class="archive-btn" onclick="archiveVideo('${v.id}')" title="Archive — hides from library but keeps all data">📦 Archive</button>
+          <button class="del-btn" onclick="deleteVideo('${v.id}')">🗑 Delete</button>
         </div>
       </td>
     </tr>`;
@@ -3536,9 +3549,12 @@ function renderCatsPanel() {
       <span class="drag-handle" style="font-size:14px;cursor:grab;color:var(--muted)" title="Drag to reorder">⠿</span>
       <div class="cat-card-icon">${m.icon}</div>
       <div class="cat-card-info"><div class="cat-card-name">${c}</div><div class="cat-card-count">${count} video${count!==1?'s':''}</div></div>
-      <button class="cat-del-btn" onclick="deleteCategory('${c}')" ${!canDel?'disabled':''}>
-        ${count>0?`Delete+Move (${count})`:'Delete'}
-      </button>
+      <div style="display:flex;gap:6px">
+        ${count>0?`<button class="archive-btn" style="font-size:11px;padding:4px 9px" onclick="archiveCategory('${c}')" title="Archive all videos in this category">📦</button>`:''}
+        <button class="cat-del-btn" onclick="deleteCategory('${c}')" ${!canDel?'disabled':''}>
+          ${count>0?`Delete+Move (${count})`:'Delete'}
+        </button>
+      </div>
     </div>`;
   }).join('');
   const emojiOpts=EMOJI_OPTIONS.map(e=>`<div class="emoji-opt ${selectedEmoji===e?'sel':''}" onclick="selEmoji('${e}')">${e}</div>`).join('');
@@ -4841,6 +4857,7 @@ function isScheduled(v) {
 }
 // Used in video card / home rendering — hide scheduled from non-admins
 function videoVisible(v) {
+  if (v.archived) return false;          // archived — hidden from all users
   if (isExpired(v)) return false;
   if (isScheduled(v) && effectiveRole() !== 'admin') return false;
   return true;
@@ -5536,6 +5553,209 @@ async function sendWelcomeEmail({ name, email, username, pass, role }) {
     console.error('EmailJS error:', e);
     showToast(`⚠ Email failed — share credentials manually: ${username} / ${pass}`);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ARCHIVE SYSTEM — Admin-only browsable section
+// ═══════════════════════════════════════════════════════════════
+let archiveFilter = 'all'; // 'all' | 'videos' | 'categories' | 'assets'
+
+// ── Archive a single video ────────────────────────────────────
+function archiveVideo(id) {
+  const sid = String(id);
+  const v = videos.find(x=>String(x.id)===sid); if (!v) return;
+  if (!confirm(`Archive "${v.title}"?\n\nHidden from all users. All data (analytics, assignments, comments) is preserved. Only you (Admin) can see and restore it.`)) return;
+  v.archived = true; v.featured = false;
+  dbSaveVideo({ id:v.id, title:v.title, category:v.category, url:v.url||'', thumb:v.thumb||'',
+    duration:v.duration||'0:00', description:v.desc||'', tags:v.tags||[],
+    required:!!v.required, featured:false, expires_at:v.expiresAt||null,
+    publish_at:v.publishAt||null, archived:true, sort_order:v.sortOrder||0,
+    added_at:v.addedAt||new Date().toISOString() });
+  showToast(`📦 "${v.title}" archived`);
+  refreshNavManage(); renderManage();
+}
+
+// ── Archive a whole category (archives all its videos) ────────
+function archiveCategory(catName) {
+  const catVideos = videos.filter(v=>v.category===catName&&!v.archived);
+  if (!confirm(`Archive category "${catName}"?\n\n${catVideos.length} video${catVideos.length!==1?'s':''} will be hidden from all users. All data is preserved.`)) return;
+  catVideos.forEach(v => {
+    v.archived = true; v.featured = false;
+    dbSaveVideo({ id:v.id, title:v.title, category:v.category, url:v.url||'', thumb:v.thumb||'',
+      duration:v.duration||'0:00', description:v.desc||'', tags:v.tags||[], required:!!v.required,
+      featured:false, expires_at:v.expiresAt||null, publish_at:v.publishAt||null,
+      archived:true, sort_order:v.sortOrder||0, added_at:v.addedAt||new Date().toISOString() });
+  });
+  showToast(`📦 Category "${catName}" archived — ${catVideos.length} video${catVideos.length!==1?'s':''} hidden`);
+  refreshNavManage(); renderManage();
+}
+
+// ── Archive a specific asset (file) ──────────────────────────
+function archiveAsset(videoId, fileIdx) {
+  const sid = String(videoId);
+  const v = videos.find(x=>String(x.id)===sid); if (!v||!v.files?.[fileIdx]) return;
+  const f = v.files[fileIdx];
+  if (!confirm(`Archive asset "${f.label||f.name}"?\n\nHidden from library but preserved in the database.`)) return;
+  f.archived = true;
+  saveData().then(()=>showToast(`📦 Asset "${f.label||f.name}" archived`));
+  refreshNavManage(); renderManage();
+}
+
+// ── Restore functions ─────────────────────────────────────────
+function restoreVideo(id) {
+  const sid = String(id);
+  const v = videos.find(x=>String(x.id)===sid); if (!v) return;
+  v.archived = false;
+  dbSaveVideo({ id:v.id, title:v.title, category:v.category, url:v.url||'', thumb:v.thumb||'',
+    duration:v.duration||'0:00', description:v.desc||'', tags:v.tags||[],
+    required:!!v.required, featured:!!v.featured, expires_at:v.expiresAt||null,
+    publish_at:v.publishAt||null, archived:false, sort_order:v.sortOrder||0,
+    added_at:v.addedAt||new Date().toISOString() });
+  showToast(`✅ "${v.title}" restored to library`);
+  refreshNavManage(); renderArchivePage();
+}
+
+function restoreCategoryVideos(catName) {
+  const catVideos = videos.filter(v=>v.category===catName&&v.archived);
+  catVideos.forEach(v => {
+    v.archived = false;
+    dbSaveVideo({ id:v.id, title:v.title, category:v.category, url:v.url||'', thumb:v.thumb||'',
+      duration:v.duration||'0:00', description:v.desc||'', tags:v.tags||[], required:!!v.required,
+      featured:false, expires_at:v.expiresAt||null, publish_at:v.publishAt||null,
+      archived:false, sort_order:v.sortOrder||0, added_at:v.addedAt||new Date().toISOString() });
+  });
+  showToast(`✅ ${catVideos.length} video${catVideos.length!==1?'s':''} from "${catName}" restored`);
+  refreshNavManage(); renderArchivePage();
+}
+
+function restoreAsset(videoId, fileIdx) {
+  const sid = String(videoId);
+  const v = videos.find(x=>String(x.id)===sid); if (!v||!v.files?.[fileIdx]) return;
+  v.files[fileIdx].archived = false;
+  saveData().then(()=>showToast('✅ Asset restored'));
+  renderArchivePage();
+}
+
+// ── Full Archive Page ─────────────────────────────────────────
+function renderArchivePage() {
+  renderSidebar();
+  if (currentUser?.role !== 'admin') { renderHome(); return; }
+
+  const archivedVids  = videos.filter(v=>v.archived);
+  const archivedCats  = [...new Set(archivedVids.map(v=>v.category))];
+  // Assets: files marked archived across any video
+  const archivedAssets = [];
+  videos.forEach(v=>(v.files||[]).forEach((f,i)=>{ if(f.archived) archivedAssets.push({f,v,i}); }));
+
+  const totalCount = archivedVids.length + archivedAssets.length;
+
+  // Filter pills
+  const filterPills = [
+    { key:'all',        label:`All (${totalCount})` },
+    { key:'videos',     label:`🎬 Videos (${archivedVids.length})` },
+    { key:'categories', label:`🗂 By Category (${archivedCats.length})` },
+    { key:'assets',     label:`📎 Assets (${archivedAssets.length})` },
+  ].map(p=>`<button class="afilter-btn ${archiveFilter===p.key?'active':''}" onclick="archiveFilter='${p.key}';renderArchivePage()">${p.label}</button>`).join('');
+
+  let content = '';
+
+  if (!totalCount) {
+    content = `<div style="text-align:center;padding:64px 32px;color:var(--muted)">
+      <div style="font-size:52px;margin-bottom:16px">📦</div>
+      <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px">Archive is Empty</div>
+      <div style="font-size:14px;max-width:420px;margin:0 auto;line-height:1.6">
+        Move videos, categories, or assets here to hide them from the library while preserving all their data.
+        Use the <strong>📦 Archive</strong> button in Settings → Videos.
+      </div>
+    </div>`;
+  } else {
+
+    // ── Videos section ──────────────────────────────────────
+    if (archiveFilter === 'all' || archiveFilter === 'videos') {
+      const rows = archivedVids.map(v => {
+        const m = cats[v.category]||{icon:'📁',color:'#6b7266',bg:'rgba(107,114,128,.1)'};
+        const t = bestThumb(v);
+        const viewCount = _cachedAnalytics.filter(e=>e.type==='view'&&String(e.videoId)===String(v.id)).length;
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1.5px solid var(--border)">
+          <div style="width:60px;height:38px;border-radius:7px;background:${m.bg};overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+            ${t?`<img src="${t}" style="width:100%;height:100%;object-fit:cover">`:`<span style="font-size:18px">${m.icon}</span>`}
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:14px;color:var(--text)">${v.title}</div>
+            <div style="font-size:12px;color:var(--muted)">${m.icon} ${v.category} · ${v.duration} · ${viewCount} view${viewCount!==1?'s':''} historically</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="restore-btn" onclick="restoreVideo('${v.id}')">↩ Restore</button>
+            <button class="del-btn" onclick="deleteVideo('${v.id}')">🗑 Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      if (archivedVids.length) content += `
+        <div class="acard" style="margin-bottom:18px">
+          <div class="acard-title">🎬 Archived Videos <span style="font-size:13px;font-weight:400;color:var(--muted)">${archivedVids.length}</span></div>
+          <div class="acard-sub">Restore to make visible again, or permanently delete.</div>
+          ${rows}
+        </div>`;
+    }
+
+    // ── By Category section ──────────────────────────────────
+    if (archiveFilter === 'all' || archiveFilter === 'categories') {
+      const catCards = archivedCats.map(catName => {
+        const m = cats[catName]||{icon:'📁',color:'#6b7266',bg:'rgba(107,114,128,.1)'};
+        const catVids = archivedVids.filter(v=>v.category===catName);
+        return `<div class="acard" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:42px;height:42px;border-radius:10px;background:${m.bg};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${m.icon}</div>
+            <div style="flex:1">
+              <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800">${catName}</div>
+              <div style="font-size:12px;color:var(--muted)">${catVids.length} archived video${catVids.length!==1?'s':''}</div>
+            </div>
+            <button class="restore-btn" onclick="restoreCategoryVideos('${catName}')">↩ Restore All</button>
+          </div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px">
+            ${catVids.map(v=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+              <span style="font-size:13px;flex:1">${v.title}</span>
+              <span style="font-size:11px;color:var(--muted)">${v.duration}</span>
+              <button class="restore-btn" style="padding:3px 10px;font-size:11px" onclick="restoreVideo('${v.id}')">↩</button>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+      if (archivedCats.length) content += catCards;
+    }
+
+    // ── Assets section ───────────────────────────────────────
+    if (archiveFilter === 'all' || archiveFilter === 'assets') {
+      const assetRows = archivedAssets.map(({f,v,i}) => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:22px">${fileIcon(f.type,f.name)}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px">${f.label||f.name}</div>
+            <div style="font-size:11px;color:var(--muted)">From: ${v.title} · ${formatBytes(f.size||0)}</div>
+          </div>
+          <button class="restore-btn" onclick="restoreAsset('${v.id}',${i})">↩ Restore</button>
+        </div>`).join('');
+      if (archivedAssets.length) content += `
+        <div class="acard">
+          <div class="acard-title">📎 Archived Assets <span style="font-size:13px;font-weight:400;color:var(--muted)">${archivedAssets.length}</span></div>
+          <div class="acard-sub">Archived assets are hidden from the library but their files are preserved.</div>
+          ${assetRows}
+        </div>`;
+    }
+  }
+
+  document.getElementById('main-content').innerHTML = `
+    <div style="padding:32px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <div class="page-title">📦 Archive</div>
+          <div class="page-sub" style="margin:0">Admin-only. Hidden from all other users. All data is fully preserved.</div>
+        </div>
+        <button class="btn-green-lg" style="margin:0" onclick="showPage('manage');switchTab('videos')">← Back to Settings</button>
+      </div>
+      <div class="analytics-filter-row" style="margin-bottom:20px">${filterPills}</div>
+      ${content}
+    </div>`;
 }
 
 window.onload = async () => {
