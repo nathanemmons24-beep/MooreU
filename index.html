@@ -1604,23 +1604,8 @@ function saveTeamUsers() {
 }
 
 // Login uses _dbUsers loaded from Supabase at page start
-function findUser(loginStr, pass) {
-  const ls = loginStr.toLowerCase().trim();
-  const u = _dbUsers.find(u =>
-    ((u.username||'').toLowerCase()===ls ||
-     (u.id||'').toLowerCase()===ls ||
-     (u.email||'').toLowerCase()===ls) && u.pass===pass
-  );
-  if (!u) return null;
-  if (u.inactive) return { __blocked:true, name:u.name };
-  return u;
-}
 
-function userKey(u) { return u.username || u.id; }
 
-function allUsers() {
-  return _dbUsers;
-}
 
 // ===============================================================
 //  DATA PERSISTENCE — handled by Supabase (see saveData above)
@@ -1749,19 +1734,6 @@ function applySettings(s) {
   }
 }
 
-function saveSettings() {
-  const existing = loadSettings();
-  const s = {
-    siteName:    document.getElementById('set-site-name')?.value.trim() || 'Moore Holdings University',
-    siteSubtitle:document.getElementById('set-site-sub')?.value.trim()  || 'Employee Training & Development Portal',
-    loginHint:   document.getElementById('set-login-hint')?.value.trim()|| '',
-    accentColor: document.getElementById('set-accent')?.value           || '#4a7c3f',
-    logoData:    existing.logoData || '',
-  };
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
-  applySettings(s);
-  showToast('💾 Site settings saved!');
-}
 
 async function handleLogoUpload(e) {
   const file = e.target.files[0]; if (!file) return;
@@ -2211,25 +2183,6 @@ function updatePassStrength(val) {
   txt.style.color   = l.color === 'var(--border)' ? 'var(--muted)' : l.color;
 }
 
-function saveProfilePassword() {
-  const uid = currentUser?.id || currentUser?.username;
-  const cur  = document.getElementById('prof-cur-pass')?.value;
-  const nw   = document.getElementById('prof-new-pass')?.value;
-  const conf = document.getElementById('prof-conf-pass')?.value;
-  if (!cur || !nw || !conf) { showToast('⚠ Fill in all password fields'); return; }
-  if (nw !== conf)          { showToast('⚠ New passwords don\'t match'); return; }
-  if (nw.length < 8)        { showToast('⚠ Password must be at least 8 characters'); return; }
-  const u = teamUsers.find(u=>u.username===uid||u.id===uid);
-  if (!u)  { showToast('⚠ Cannot change password for built-in accounts'); return; }
-  if (u.pass !== cur) { showToast('⚠ Current password is incorrect'); return; }
-  u.pass = nw;
-  saveTeamUsers();
-  showToast('✅ Password updated successfully');
-  document.getElementById('prof-cur-pass').value  = '';
-  document.getElementById('prof-new-pass').value  = '';
-  document.getElementById('prof-conf-pass').value = '';
-  updatePassStrength('');
-}
 
 function closeProfile(e) {
   if (!e || e.target===document.getElementById('profile-overlay'))
@@ -2871,7 +2824,6 @@ function renderHome() {
 function carouselScroll(gridId, dir) {
   const grid = document.getElementById(gridId);
   if (!grid) return;
-  // On mobile use horizontal scroll, on desktop do nothing (grid wraps naturally)
   if (window.innerWidth <= 700) {
     const cardW = grid.querySelector('.video-card')?.offsetWidth || 280;
     grid.scrollBy({ left: dir * (cardW + 14), behavior: 'smooth' });
@@ -2896,14 +2848,18 @@ function updateCarouselArrows() {
     next.style.display  = canScrollR && grid.scrollWidth > grid.clientWidth ? 'flex' : 'none';
   });
 }
-  const allAssets = assetCount > 0;
-  return ['All', ...vcats].map(c =>
-    `<button class="filter-btn ${activeFilter===c?'active':''}" onclick="setFilter('${c}')">${c==='All'?'📋 All':(cats[c]?.icon||'')+' '+c}</button>`
-  ).join('') +
-  (allAssets
-    ? `<button class="filter-btn ${activeFilter==='__assets__'?'active':''}" onclick="setFilter('__assets__')">📎 Assets</button>`
-    : '');
+
+function buildFilterBtns(vcats, assetCount) {
+  const hasAssets = assetCount > 0;
+  const allBtn = `<button class="filter-btn ${activeFilter==='All'?'active':''}" onclick="setFilter('All')">All</button>`;
+  const catBtns = vcats.map(c => {
+    const m = cats[c]||{icon:'📁'};
+    return `<button class="filter-btn ${activeFilter===c?'active':''}" onclick="setFilter('${c}')">${m.icon} ${c}</button>`;
+  }).join('');
+  const assetBtn = hasAssets ? `<button class="filter-btn ${activeFilter==='__assets__'?'active':''}" onclick="setFilter('__assets__')">📎 Assets</button>` : '';
+  return allBtn + catBtns + assetBtn;
 }
+
 
 function assetCard(a) {
   return `<div class="asset-card" onclick="openAssetPreview(${a.videoId},${a.fileIdx})">
@@ -4792,9 +4748,6 @@ function timeAgo(ts) {
 // ===============================================================
 //  ASSIGNMENT SYSTEM
 // ===============================================================
-function getAssignments() {
-  try { return JSON.parse(localStorage.getItem(ASSIGN_KEY)||'[]'); } catch(e){ return []; }
-}
 function saveAssignments(a) { localStorage.setItem(ASSIGN_KEY, JSON.stringify(a)); }
 
 let _assignVideoId = null;
@@ -4859,48 +4812,6 @@ function assignSelectAll(checked) {
   document.querySelectorAll('.assign-user-cb').forEach(cb=>cb.checked=checked);
 }
 
-function submitAssignment() {
-  const v        = videos.find(x=>x.id===_assignVideoId); if (!v) return;
-  const selected = [...document.querySelectorAll('.assign-user-cb:checked')].map(cb=>cb.value);
-  if (!selected.length) { showToast('⚠ Select at least one user'); return; }
-  const due      = document.getElementById('assign-due')?.value||'';
-  const notes    = document.getElementById('assign-notes')?.value.trim()||'';
-  const priority = document.getElementById('assign-priority')?.value||'normal';
-  const assignedBy = currentUser?.name || 'Admin';
-
-  const assignments = getAssignments();
-  const allU = allUsers();
-
-  selected.forEach(uid => {
-    const user = allU.find(u=>(u.id||u.username)===uid);
-    if (!user) return;
-    assignments.push({
-      id: Date.now()+'_'+Math.random().toString(36).slice(2),
-      videoId: v.id, videoTitle: v.title, userId: uid, userName: user.name,
-      userEmail: user.email||'', assignedBy, assignedAt: Date.now(),
-      due, notes, priority, completed: false
-    });
-    // Simulate email notification (show toast + add to notification center)
-    addNotification({
-      title: `Training Assigned: ${v.title}`,
-      body: `Assigned to ${user.name}${due?' · Due '+new Date(due+'T12:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}):''}${notes?' · "'+notes.slice(0,50)+'"':''}`,
-      icon: '📋',
-      color: 'rgba(74,124,63,.12)',
-      userId: uid,
-      type: 'assignment'
-    });
-    // Simulate email
-    console.log(`[EMAIL] To: ${user.email||user.name} | Subject: Training Assigned — ${v.title} | ${notes}`);
-  });
-
-  saveAssignments(assignments);
-  document.getElementById('assign-overlay')?.classList.remove('on');
-  _assignVideoId = null;
-
-  const priorityLabel = priority==='urgent'?'🚨 Urgent':priority==='high'?'🔴 High':'Normal';
-  showToast(`✅ Assigned to ${selected.length} user${selected.length!==1?'s':''} · Notifications sent`);
-  renderManage();
-}
 
 // ===============================================================
 //  USER EDIT / DUPLICATE / INACTIVE
@@ -5058,43 +4969,8 @@ function deletePath(idx) {
 function getRatings() { try{return JSON.parse(localStorage.getItem(RATINGS_KEY)||'{}');}catch(e){return{};} }
 function getNotes()   { try{return JSON.parse(localStorage.getItem(NOTES_KEY)||'{}');}catch(e){return{};} }
 
-function rateVideo(videoId, stars) {
-  const uid = currentUser?.id||currentUser?.username||'guest';
-  const ratings = getRatings();
-  if (!ratings[videoId]) ratings[videoId]={};
-  ratings[videoId][uid] = stars;
-  localStorage.setItem(RATINGS_KEY, JSON.stringify(ratings));
-  showToast(`⭐ Rated ${stars}/5 stars`);
-  // Update star display in modal
-  for (let i=1;i<=5;i++) {
-    const el = document.getElementById(`star-${videoId}-${i}`);
-    if (el) el.style.color = i<=stars ? '#f59e0b' : 'var(--border)';
-  }
-}
 
-function saveVideoNote(videoId) {
-  const uid   = currentUser?.id||currentUser?.username||'guest';
-  const notes = getNotes();
-  const val   = document.getElementById(`note-area-${videoId}`)?.value||'';
-  if (!notes[videoId]) notes[videoId]={};
-  notes[videoId][uid] = val;
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
-  showToast('📝 Note saved');
-}
 
-function getVideoRating(videoId) {
-  const uid  = currentUser?.id||currentUser?.username||'guest';
-  const r    = getRatings()[videoId];
-  return r?.[uid]||0;
-}
-function getVideoNote(videoId) {
-  const uid = currentUser?.id||currentUser?.username||'guest';
-  return getNotes()[videoId]?.[uid]||'';
-}
-function getAvgRating(videoId) {
-  const r = getRatings()[videoId]; if(!r) return 0;
-  const vals=Object.values(r); return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):0;
-}
 
 // ===============================================================
 //  VIDEO SCHEDULING (publish on date)
@@ -5609,17 +5485,6 @@ async function loadAvgRating(videoId) {
 }
 
 // Override rateVideo to use dedicated ratings table + update stars persistently
-async function rateVideo(videoId, stars) {
-  if (!_dbUser) return;
-  await dbUpsertRating(_dbUser.id, videoId, stars);
-  // Update local progress cache
-  const p = _dbProgress.find(p=>p.video_id===videoId);
-  if (p) p.rating=stars; else _dbProgress.push({video_id:videoId,rating:stars,user_id:_dbUser.id});
-  // Update star display permanently (not just hover)
-  resetStars(videoId, stars);
-  showToast(`⭐ Rated ${stars}/5 — saved!`);
-  loadAvgRating(videoId);
-}
 
 // Load and render comments for a video
 async function loadModalComments(videoId) {
