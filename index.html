@@ -3390,30 +3390,6 @@ function renderCatsPanel() {
     + '<div class="cat-grid">' + catCards + '</div>'
     + '</div>';
 }
-  const catCards = catList.map(c => {
-    const m = cats[c], count = videos.filter(v=>v.category===c&&!v.archived).length, canDel = catList.length>1;
-    return `<div class="cat-card" draggable="true"
-      ondragstart="catDragStart(event,'${c}')" ondragover="catDragOver(event)" ondrop="catDragDrop(event,'${c}')" ondragend="catDragEnd(event)">
-      <span class="drag-handle" style="font-size:14px;cursor:grab;color:var(--muted)">⠿</span>
-      <div class="cat-card-icon">${m.icon}</div>
-      <div class="cat-card-info"><div class="cat-card-name">${c}</div><div class="cat-card-count">${count} video${count!==1?'s':''}</div></div>
-      <div style="display:flex;gap:6px">
-        ${count>0?'<button class="archive-btn" style="font-size:11px;padding:4px 9px" onclick="archiveCategory(\''+c+'\')" title="Archive all videos in this category">Archive</button>':''}
-        <button class="cat-del-btn" onclick="deleteCategory('${c}')" ${!canDel?'disabled':''}>
-          ${count>0?'Delete+Move ('+count+')':'Delete'}
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  const emojiOpts = ['📁','🎯','🚀','💡','📚','🏆','⚡','🎓','🔑','📊','🌟','🤝','💼','🔧','📋'].map(e=>`<div class="emoji-opt ${selectedEmoji===e?'sel':''}" onclick="selEmoji('${e}')">${e}</div>`).join('');
-
-  return `
-  <div class="acard">
-    <div class="acard-title">Add New Category</div>
-    <div class="add-cat-row">
-
-// Category drag-drop functions defined further down in original file
 
 // selectedEmoji declared in original file above
 function selEmoji(e){selectedEmoji=e;renderManage();}
