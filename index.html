@@ -2526,6 +2526,12 @@ function ytID(url) {
 }
 function ytThumb(url) { const id=ytID(url); return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null; }
 function bestThumb(v) { return v.thumb || ytThumb(v.url); }
+function extractYouTubeId(url) { return ytID(url); }
+function extractVimeoId(url) {
+  if (!url) return null;
+  const m = url.match(/vimeo\.com\/(\d+)/);
+  return m ? m[1] : null;
+}
 
 // ===============================================================
 //  NAV
