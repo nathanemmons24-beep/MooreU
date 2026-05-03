@@ -120,7 +120,7 @@
   /* LIBRARY */
   .lib-body{padding:32px;}
   .sec-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:11px;border-bottom:2px solid var(--border);}
-  .sec-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .sec-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--green-bg);color:var(--green);}
   .sec-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:var(--black);}
   .sec-count{font-size:13px;color:var(--muted);margin-left:auto;}
   .cat-section{margin-bottom:36px;}
@@ -835,9 +835,16 @@
   .cat-folder-label{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:2px 8px;margin-bottom:10px;}
   /* ── Category List Row ── */
   .cat-list-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--white);border:1.5px solid var(--border);border-radius:10px;transition:border-color .15s;}
-  .cat-list-row:hover{border-color:#bbb;}
+  .cat-list-row:hover{border-color:var(--green);}
   .cat-list-row.dragging{opacity:.4;}
   .cat-list-row.drag-over{border-color:var(--green);background:var(--green-bg);}
+  .cat-list-row input[type=text]{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--text);background:transparent;border:none;border-bottom:1.5px dashed transparent;outline:none;width:100%;cursor:pointer;transition:border-color .15s;}
+  .cat-list-row input[type=text]:hover{border-bottom-color:var(--border);}
+  .cat-list-row input[type=text]:focus{border-bottom-color:var(--green);cursor:text;background:var(--green-bg);border-radius:4px 4px 0 0;padding:2px 4px;}
+  /* ── RBA Green Icon Tint ── */
+  .icon-tint{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:var(--green-bg);color:var(--green);font-size:17px;flex-shrink:0;}
+  .icon-tint-lg{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:var(--green-bg);color:var(--green);font-size:20px;flex-shrink:0;}
+  .nav-item .cat-icon-tint{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:var(--green-bg);font-size:13px;flex-shrink:0;}
 
   .fav-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:4;font-size:15px;transition:all .2s;backdrop-filter:blur(4px);line-height:1;}
   .fav-btn:hover{background:rgba(220,38,38,.6);transform:scale(1.15);}
@@ -2720,7 +2727,7 @@ function renderSidebar() {
     const isOpen = fd.open !== false;
     const catItems = folderCats.map(c =>
       '<div class="nav-item cat-nav-item ' + (activeFilter===c?'active':'') + '" onclick="setFilter(\'' + c + '\')">'
-      + cats[c].icon + ' ' + c + '</div>'
+      + '<span class="cat-icon-tint">' + cats[c].icon + '</span> ' + c + '</div>'
     ).join('');
     return '<div class="folder-group">'
       + '<div class="folder-header" onclick="toggleFolder(\'' + folderName.replace(/'/g,"\\'") + '\')">'
@@ -2737,7 +2744,7 @@ function renderSidebar() {
   const topCats = vcats.filter(c => !catsInFolders.has(c));
   const topCatHtml = topCats.map(c =>
     '<div class="nav-item cat-nav-item ' + (activeFilter===c?'active':'') + '" onclick="setFilter(\'' + c + '\')">'
-    + cats[c].icon + ' ' + c + '</div>'
+    + '<span class="cat-icon-tint">' + cats[c].icon + '</span> ' + c + '</div>'
   ).join('');
 
   // Favorites nav item
@@ -2910,7 +2917,7 @@ function renderHome() {
       const cards = matched.map(a => assetCard(a)).join('');
       assetsBody = `<div class="cat-section">
         <div class="sec-header">
-          <div class="sec-icon" style="background:rgba(107,114,128,.12);color:#374151">📎</div>
+          <div class="sec-icon">📎</div>
           <div class="sec-name">Assets</div>
           <div class="sec-count">${matched.length} file${matched.length!==1?'s':''}</div>
         </div>
@@ -2945,7 +2952,7 @@ function renderHome() {
       const catId = 'grid-' + cat.replace(/[^a-zA-Z0-9]/g,'-');
       return `<div class="cat-section" id="cat-sec-${cat.replace(/[^a-zA-Z0-9]/g,'-')}">
         <div class="sec-header">
-          <div class="sec-icon" style="background:${m.bg};color:${m.color}">${m.icon}</div>
+          <div class="sec-icon">${m.icon}</div>
           <div class="sec-name">${cat}</div>
           <div class="sec-count">${vids.length} resource${vids.length!==1?'s':''}</div>
         </div>
@@ -2964,7 +2971,7 @@ function renderHome() {
     const cards = allAssets.map(a => assetCard(a)).join('');
     assetsSection = `<div class="cat-section">
       <div class="sec-header">
-        <div class="sec-icon" style="background:rgba(107,114,128,.12);color:#374151">📎</div>
+        <div class="sec-icon">📎</div>
         <div class="sec-name">Assets</div>
         <div class="sec-count">${allAssets.length} file${allAssets.length!==1?'s':''}</div>
       </div>
@@ -3339,7 +3346,7 @@ function renderCatsPanel() {
     const fd = myFolders[fname];
     const count = catList.filter(c=>cats[c]?.folder===fname).length;
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px">'
-      + '<div style="width:34px;height:34px;border-radius:8px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--green);flex-shrink:0">' + (fd.icon||'📁') + '</div>'
+      + '<div class="icon-tint-lg">' + (fd.icon||'📁') + '</div>'
       + '<div style="flex:1"><div style="font-weight:700;font-size:14px">' + fname + '</div>'
       + '<div style="font-size:12px;color:var(--muted)">' + count + ' categor' + (count===1?'y':'ies') + '</div></div>'
       + '<button onclick="renameFolderPrompt(\'' + fname.replace(/'/g,"\\'") + '\')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Rename</button>'
@@ -3361,15 +3368,13 @@ function renderCatsPanel() {
       : '';
 
     return '<div class="cat-list-row" draggable="true" ondragstart="catDragStart(event,\'' + c + '\')" ondragover="catDragOver(event)" ondrop="catDragDrop(event,\'' + c + '\')" ondragend="catDragEnd(event)">'
-      // Drag handle
       + '<span class="drag-handle" style="color:var(--muted);cursor:grab;font-size:14px;flex-shrink:0">⠿</span>'
-      // Icon
-      + '<div style="width:32px;height:32px;border-radius:8px;background:' + (m.bg||'rgba(74,124,63,.12)') + ';display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + m.icon + '</div>'
-      // Name (editable inline)
+      + '<div class="icon-tint">' + m.icon + '</div>'
       + '<div style="flex:1;min-width:0">'
-      + '<input id="cat-name-' + c.replace(/[^a-zA-Z0-9]/g,'-') + '" type="text" value="' + c + '" style="font-family:\'Syne\',sans-serif;font-size:13px;font-weight:700;color:var(--text);background:transparent;border:none;outline:none;width:100%;cursor:text" '
+      + '<input id="cat-name-' + c.replace(/[^a-zA-Z0-9]/g,'-') + '" type="text" value="' + c + '" '
+      + 'title="Click to rename" '
       + 'onblur="renameCategory(\'' + c.replace(/'/g,"\\'") + '\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"/>'
-      + '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + count + ' video' + (count!==1?'s':'') + (currentFolder?' · 📁 '+currentFolder:'') + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + count + ' video' + (count!==1?'s':'') + (currentFolder?' · 📁 '+currentFolder:'') + ' · click name to rename</div>'
       + '</div>'
       // Folder assign
       + folderSelect
