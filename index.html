@@ -1253,11 +1253,20 @@ async function refreshAnalytics() {
   renderManage();
 }
 
-function findUser(loginStr,pass){
-  const ls=loginStr.toLowerCase().trim();
-  const u=_dbUsers.find(u=>((u.username||'').toLowerCase()===ls||(u.email||'').toLowerCase()===ls)&&u.pass===pass);
-  if(!u)return null;
-  if(u.inactive)return{__blocked:true,name:u.name};
+function findUser(loginStr, pass) {
+  const ls = loginStr.toLowerCase().trim();
+  // Support both 'pass' and 'password' column names from Supabase
+  const u = _dbUsers.find(u => {
+    const nameMatch = (u.username||'').toLowerCase()===ls || (u.email||'').toLowerCase()===ls;
+    const passMatch = u.pass===pass || u.password===pass;
+    return nameMatch && passMatch;
+  });
+  if (!u) {
+    console.log('[Login] Failed for:', ls, '| Users loaded:', _dbUsers.length,
+      '| Available usernames:', _dbUsers.map(x=>x.username||x.id).join(','));
+    return null;
+  }
+  if (u.inactive) return { __blocked: true, name: u.name };
   return u;
 }
 function userKey(u){return u.username||u.id;}
@@ -2413,7 +2422,14 @@ async function doLogin(resumeId) {
     const loginStr = document.getElementById('login-user')?.value.trim() || '';
     const pass     = document.getElementById('login-pass')?.value || '';
     user = findUser(loginStr, pass);
-    if (!user) { document.getElementById('login-error').style.display = 'block'; return; }
+    if (!user) {
+      const errEl = document.getElementById('login-error');
+      errEl.style.display = 'block';
+      errEl.textContent = _dbUsers.length === 1 && _dbUsers[0].username === 'admin'
+        ? 'DB not connected. Use: admin / admin123'
+        : 'Incorrect username or password.';
+      return;
+    }
     if (user.__blocked) {
       const errEl = document.getElementById('login-error');
       errEl.style.display='block';
@@ -5159,7 +5175,10 @@ window.onload = async () => {
   showSyncStatus('Connecting...');
   try {
     _dbUsers = await dbGetUsers() || [];
+    console.log('[Login] Loaded', _dbUsers.length, 'users from Supabase');
+    if (_dbUsers.length > 0) console.log('[Login] First user:', _dbUsers[0].username, 'pass field:', _dbUsers[0].pass ? 'pass' : (_dbUsers[0].password ? 'password' : 'MISSING'));
   } catch(e) {
+    console.warn('[Login] dbGetUsers failed:', e.message);
     _dbUsers = [];
   }
   showSyncStatus('');
@@ -5167,8 +5186,14 @@ window.onload = async () => {
   if (!_dbUsers.length) {
     _dbUsers = [{ id:'admin', username:'admin', name:'Admin',
       email:'admin@mooreu.org', pass:'admin123', role:'admin', inactive:false }];
-    showSyncStatus('DB not connected - run schema in Supabase');
+    showSyncStatus('DB not connected — use admin / admin123');
     setTimeout(()=>showSyncStatus(''),8000);
+  } else {
+    // Normalize: some Supabase schemas store password as 'password' not 'pass'
+    _dbUsers = _dbUsers.map(u => ({
+      ...u,
+      pass: u.pass || u.password || u.passwd || ''
+    }));
   }
 
   const resumed = resumeSession();
