@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- MooreU Training Portal | Built 2026-05-01 23:31 -->
+<!-- MooreU v3-CLEAN Built 2026-05-03 00:27 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -3139,7 +3139,7 @@ function renderVideosPanel() {
           <input type="file" accept="image/*" onchange="handleThumbUpload(event)"/>
           <div class="upload-label">Click to upload thumbnail</div>
         </div>
-        ${newThumb||newThumbUrl?`<div style="position:relative;display:inline-block;margin-top:8px"><img id="thumb-preview-img" src="${newThumb||newThumbUrl}" style="height:80px;border-radius:8px;border:1.5px solid var(--border)"/><button class="thumb-clear" onclick="newThumb='';newThumbUrl='';renderManage()">x</button></div>`:'<div id="thumb-preview-area"></div>'}
+        ${newThumb||newThumbUrl?('<div style="position:relative;display:inline-block;margin-top:8px"><img id="thumb-preview-img" src="'+(newThumb||newThumbUrl)+'" style="height:80px;border-radius:8px;border:1.5px solid var(--border)"/><button class="thumb-clear" onclick="newThumb=&apos;&apos;;newThumbUrl=&apos;&apos;;renderManage()">x</button></div>'):'<div id="thumb-preview-area"></div>'}
       </div>
       <div class="ff full">
         <label>File Attachments <span style="font-weight:400;color:#aaa">(PDFs, docs, etc.)</span></label>
