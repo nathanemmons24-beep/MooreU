@@ -2007,27 +2007,6 @@ function renderProfileOverview(u, uid) {
     + bookmarkSection;
 }
 
-  const myAssign = getAssignments().filter(a=>a.userId===uid);
-  const pending  = myAssign.filter(a=>{let w=new Set();try{w=new Set(JSON.parse(localStorage.getItem('mhu_u_'+uid+'_watched')||'[]'));}catch(e){}return !w.has(a.videoId);});
-  const overdue  = getOverdueAssignments(uid);
-
-  const reqList = reqVids.slice(0,5).map(v=>`
-    <div class="required-item" onclick="closeProfile();openModal('${v.id}')">
-      <div class="required-check ${watchedIds.has(String(v.id))?'done':''}">${watchedIds.has(String(v.id))?'✓':''}</div>
-      <div class="required-item-title">${v.title}</div>
-      <span style="font-size:11px;color:var(--muted)">${v.duration}</span>
-    </div>`).join('');
-
-  const assignList = myAssign.slice(0,4).map(a=>{
-    let w=new Set();try{w=new Set(JSON.parse(localStorage.getItem('mhu_u_'+uid+'_watched')||'[]'));}catch(e){}
-    const done2=w.has(a.videoId);
-    const over2=a.due&&!done2&&new Date(a.due+'T23:59')<new Date();
-    return `<div class="required-item" onclick="closeProfile();showPage('tasks')">
-      <div class="required-check ${done2?'done':''}" style="${over2?'background:#c0392b;border-color:#c0392b':''}">${done2?'✓':over2?'!':''}</div>
-      <div class="required-item-title">${a.videoTitle}</div>
-      <span style="font-size:11px;color:${over2?'var(--red)':'var(--muted)'}">${a.due||'No date'}</span>
-    </div>`;
-  }).join('');
 function renderProfilePreferences() {
   const isDark   = document.body.classList.contains('dark');
   const notifOn  = localStorage.getItem('mhu_notif_pref') !== 'off';
