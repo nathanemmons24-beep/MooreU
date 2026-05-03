@@ -3297,6 +3297,10 @@ function renderVideosPanel() {
           <div style="font-size:12px;color:var(--muted)">Members answer questions after watching</div></div>
         </label>
         <div id="new-quiz-builder" style="display:none;margin-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Questions</div>
+            <button type="button" onclick="aiGenerateQuiz('new')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4a7c3f,#2d5a27);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">✨ AI Generate</button>
+          </div>
           <div id="new-quiz-questions"></div>
           <button type="button" onclick="addQuizQuestion('new')" style="background:none;border:1.5px dashed var(--green);color:var(--green);border-radius:8px;padding:8px;font-size:13px;cursor:pointer;width:100%;margin-top:4px">+ Add Question</button>
         </div>
@@ -3369,13 +3373,13 @@ function renderCatsPanel() {
 
     return '<div class="cat-list-row" draggable="true" ondragstart="catDragStart(event,\'' + c + '\')" ondragover="catDragOver(event)" ondrop="catDragDrop(event,\'' + c + '\')" ondragend="catDragEnd(event)">'
       + '<span class="drag-handle" style="color:var(--muted);cursor:grab;font-size:14px;flex-shrink:0">⠿</span>'
-      + '<div class="icon-tint">' + m.icon + '</div>'
+      + '<div style="width:32px;height:32px;border-radius:8px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">' + m.icon + '</div>'
       + '<div style="flex:1;min-width:0">'
-      + '<input id="cat-name-' + c.replace(/[^a-zA-Z0-9]/g,'-') + '" type="text" value="' + c + '" '
-      + 'title="Click to rename" '
-      + 'onblur="renameCategory(\'' + c.replace(/'/g,"\\'") + '\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"/>'
-      + '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + count + ' video' + (count!==1?'s':'') + (currentFolder?' · 📁 '+currentFolder:'') + ' · click name to rename</div>'
+      + '<div style="font-family:\'Syne\',sans-serif;font-size:13px;font-weight:700;color:var(--text)">' + c + '</div>'
+      + '<div style="font-size:11px;color:var(--muted);margin-top:1px">' + count + ' video' + (count!==1?'s':'') + (currentFolder?' · 📁 '+currentFolder:'') + '</div>'
       + '</div>'
+      + '<button onclick="promptRenameCategory(\'' + c.replace(/'/g,"\\'") + '\')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0" title="Rename">✏️ Rename</button>'
+      + folderSelect
       // Folder assign
       + folderSelect
       // Actions
@@ -3411,6 +3415,79 @@ function renderCatsPanel() {
     + '<div class="acard-sub">Drag to reorder. Click a name to rename it inline.</div>'
     + '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">' + catRows + '</div>'
     + '</div>';
+}
+
+function promptRenameCategory(oldName) {
+  const newName = prompt('Rename category "' + oldName + '" to:', oldName);
+  if (newName) renameCategory(oldName, newName);
+}
+
+// ==============================================================
+// AI QUIZ GENERATOR
+// ==============================================================
+async function aiGenerateQuiz(prefix) {
+  // Get video title and description from the form
+  const titleEl = document.getElementById(prefix === 'new' ? 'new-title' : 'edit-title');
+  const descEl  = document.getElementById(prefix === 'new' ? 'new-desc'  : 'edit-desc');
+  const title   = titleEl?.value?.trim() || '';
+  const desc    = descEl?.value?.trim()  || '';
+
+  if (!title) { showToast('⚠ Enter a video title first so AI knows what to generate questions about'); return; }
+
+  const btn = document.querySelector('[onclick="aiGenerateQuiz(\'' + prefix + '\')"]');
+  if (btn) { btn.textContent = '⏳ Generating...'; btn.disabled = true; }
+
+  try {
+    const prompt = 'You are creating a knowledge check quiz for a training video.\n\n'
+      + 'Video title: ' + title + '\n'
+      + (desc ? 'Description: ' + desc + '\n' : '')
+      + '\nGenerate 3 multiple choice quiz questions to test comprehension of this training content. '
+      + 'Each question should have 4 answer options with exactly one correct answer.\n\n'
+      + 'Respond ONLY with a JSON array, no markdown, no explanation. Format:\n'
+      + '[{"question":"...","options":["A","B","C","D"],"correct":0}]\n'
+      + 'Where "correct" is the 0-based index of the correct option.';
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const clean = text.replace(/```json|```/g, '').trim();
+    const questions = JSON.parse(clean);
+
+    // Clear existing questions
+    const container = document.getElementById(prefix + '-quiz-questions');
+    if (container) container.innerHTML = '';
+
+    // Add each question using existing addQuizQuestion infrastructure
+    questions.forEach((q, qi) => {
+      addQuizQuestion(prefix);
+      const container2 = document.getElementById(prefix + '-quiz-questions');
+      const qDiv = container2?.lastElementChild;
+      if (!qDiv) return;
+      const qInput = qDiv.querySelector('.quiz-q');
+      if (qInput) qInput.value = q.question;
+      const opts = qDiv.querySelectorAll('.quiz-opt');
+      opts.forEach((opt, oi) => { if (q.options[oi]) opt.value = q.options[oi]; });
+      const radios = qDiv.querySelectorAll('input[type=radio]');
+      if (radios[q.correct]) radios[q.correct].checked = true;
+    });
+
+    showToast('✨ ' + questions.length + ' questions generated! Review and edit as needed.');
+  } catch(err) {
+    console.error('AI quiz error:', err);
+    showToast('⚠ Could not generate questions. Check your video title and try again.');
+  } finally {
+    if (btn) { btn.innerHTML = '✨ AI Generate'; btn.disabled = false; }
+  }
 }
 
 function renameCategory(oldName, newName) {
@@ -3552,11 +3629,44 @@ function openEditModal(id){
         ${assetRows}
         <div class="upload-drop" style="margin-top:8px"><input type="file" multiple onchange="handleEditFileAttach(event)"/><div class="upload-label">Add files</div></div>
       </div>
+    <div class="ff full" style="border-top:1.5px solid var(--border);padding-top:14px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:0">
+        <input type="checkbox" id="edit-has-quiz" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer" onchange="document.getElementById('edit-quiz-builder').style.display=this.checked?'block':'none'" ${v.quiz&&v.quiz.length?'checked':''}/>
+        <div><div style="font-size:14px;font-weight:700;color:var(--text)">Knowledge Check Quiz</div>
+        <div style="font-size:12px;color:var(--muted)">Members answer questions after watching</div></div>
+      </label>
+      <div id="edit-quiz-builder" style="display:${v.quiz&&v.quiz.length?'block':'none'};margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Questions</div>
+          <button type="button" onclick="aiGenerateQuiz('edit')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4a7c3f,#2d5a27);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer">✨ AI Generate</button>
+        </div>
+        <div id="edit-quiz-questions"></div>
+        <button type="button" onclick="addQuizQuestion('edit')" style="background:none;border:1.5px dashed var(--green);color:var(--green);border-radius:8px;padding:8px;font-size:13px;cursor:pointer;width:100%;margin-top:4px">+ Add Question</button>
+      </div>
+    </div>
     </div>
     <div class="edit-actions">
       <button class="btn-save-edit" onclick="saveEdit()">Save Changes</button>
       <button class="btn-cancel-edit" onclick="closeEditModal()">Cancel</button>
     </div>`;
+  // Load existing quiz questions into edit form
+  if (v.quiz && v.quiz.length) {
+    setTimeout(() => {
+      v.quiz.forEach(q => {
+        addQuizQuestion('edit');
+        const container = document.getElementById('edit-quiz-questions');
+        const qDiv = container?.lastElementChild;
+        if (!qDiv) return;
+        const qInput = qDiv.querySelector('.quiz-q');
+        if (qInput) qInput.value = q.question || '';
+        const opts = qDiv.querySelectorAll('.quiz-opt');
+        (q.options||[]).forEach((opt,oi) => { if(opts[oi]) opts[oi].value = opt; });
+        const radios = qDiv.querySelectorAll('input[type=radio]');
+        const correctIdx = typeof q.correct === 'number' ? q.correct : (q.options||[]).indexOf(q.answer);
+        if (radios[correctIdx]) radios[correctIdx].checked = true;
+      });
+    }, 100);
+  }
   document.getElementById('edit-overlay').style.display='flex';
 }
 function saveEdit(){
@@ -3575,6 +3685,7 @@ function saveEdit(){
   v.publishAt=document.getElementById('edit-publish')?.value||'';
   v.desc=document.getElementById('edit-desc')?.value.trim()||'';
   v.required=document.getElementById('edit-required')?.checked||false;
+  v.quiz=document.getElementById('edit-has-quiz')?.checked?collectQuizData('edit'):[];
   const tagsRaw=document.getElementById('edit-tags')?.value||'';
   v.tags=tagsRaw.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
   const thumbUrl=document.getElementById('edit-thumb-url')?.value.trim();
