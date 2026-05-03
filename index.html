@@ -823,6 +823,20 @@
 
   /* ── REQUIRED INDICATOR ── */
   .required-star{color:#c0392b;font-size:13px;margin-left:4px;}
+
+  /* ── Folders ── */
+  .folder-group{margin-bottom:2px;}
+  .folder-header{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:8px;transition:background .15s;user-select:none;}
+  .folder-header:hover{background:var(--green-bg);}
+  .folder-name{font-size:13px;font-weight:700;color:var(--text);flex:1;}
+  .folder-arrow{font-size:10px;color:var(--muted);transition:transform .2s;}
+  .folder-arrow.open{transform:rotate(90deg);}
+  .folder-children .nav-item{padding-left:30px !important;}
+  .cat-folder-label{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:2px 8px;margin-bottom:10px;}
+  /* ── Favorites ── */
+  .fav-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:4;font-size:15px;transition:all .2s;backdrop-filter:blur(4px);line-height:1;}
+  .fav-btn:hover{background:rgba(220,38,38,.6);transform:scale(1.15);}
+  .fav-btn.fav-active{background:rgba(220,38,38,.75);}
 </style>
 </head>
 <body>
@@ -1141,6 +1155,7 @@ async function syncFromDB(){
       _dbNotifs=await dbGetNotifs(_dbUser.id)||[];
       watchedIds=new Set(_dbProgress.filter(p=>p.watched).map(p=>String(p.video_id)));
       bookmarkIds=new Set(_dbProgress.filter(p=>p.bookmarked).map(p=>String(p.video_id)));
+      favoriteIds=new Set(_dbProgress.filter(p=>p.favorited).map(p=>String(p.video_id)));
       recentIds=_dbRecent.map(r=>String(r.video_id));
       _cachedAssignments=(await dbGetAssigns(_dbUser.id)||[]).map(a=>({
         ...a,videoId:a.video_id,userId:a.user_id,
@@ -1599,6 +1614,8 @@ let tasksFilter     = 'all';
 // Per-user persisted state (saved per user ID)
 let watchedIds     = new Set();   // video IDs the current user has watched
 let bookmarkIds    = new Set();   // video IDs the current user has bookmarked
+let favoriteIds    = new Set();   // video IDs the current user has favorited
+let folders        = {};          // { folderName: { icon, color, open } }
 let recentIds      = [];          // ordered list of recently viewed video IDs
 let dismissedAnnouncements = new Set(); // dismissed announcement IDs
 
@@ -2589,6 +2606,91 @@ function exitPreview() {
 // ===============================================================
 //  SIDEBAR
 // ===============================================================
+// ==============================================================
+// FOLDERS
+// ==============================================================
+function getFolders() {
+  try { return JSON.parse(localStorage.getItem('mhu_folders')||'{}'); } catch(e) { return {}; }
+}
+function saveFolders(f) { localStorage.setItem('mhu_folders', JSON.stringify(f)); }
+
+function getCatFolder(catName) {
+  // Returns the folder name for a category, or null
+  return cats[catName]?.folder || null;
+}
+
+function setCatFolder(catName, folderName) {
+  if (cats[catName]) {
+    cats[catName].folder = folderName || null;
+    saveData();
+  }
+}
+
+function toggleFolder(folderName) {
+  const f = getFolders();
+  f[folderName] = f[folderName] || {};
+  f[folderName].open = !f[folderName].open;
+  saveFolders(f);
+  renderSidebar();
+}
+
+function addFolder() {
+  const name = document.getElementById('new-folder-name')?.value.trim();
+  const icon = document.getElementById('new-folder-icon')?.value.trim() || '📁';
+  if (!name) { showToast('Enter a folder name'); return; }
+  const f = getFolders();
+  if (f[name]) { showToast('Folder already exists'); return; }
+  f[name] = { icon, open: true, color: '#4a7c3f' };
+  saveFolders(f);
+  showToast('Folder "' + name + '" created!');
+  renderManage();
+}
+
+function deleteFolder(folderName) {
+  if (!confirm('Delete folder "' + folderName + '"?\n\nCategories inside will be moved to the top level.')) return;
+  // Unassign all categories from this folder
+  Object.keys(cats).forEach(c => { if (cats[c].folder === folderName) cats[c].folder = null; });
+  const f = getFolders();
+  delete f[folderName];
+  saveFolders(f);
+  saveData();
+  renderManage();
+}
+
+function renameFolderPrompt(folderName) {
+  const newName = prompt('Rename folder:', folderName);
+  if (!newName || newName === folderName) return;
+  const f = getFolders();
+  f[newName] = f[folderName];
+  delete f[folderName];
+  // Reassign categories
+  Object.keys(cats).forEach(c => { if (cats[c].folder === folderName) cats[c].folder = newName; });
+  saveFolders(f);
+  saveData();
+  renderManage();
+}
+
+// ==============================================================
+// FAVORITES (distinct from bookmarks)
+// ==============================================================
+async function toggleFavorite(id) {
+  const sid = String(id);
+  const wasFav = favoriteIds.has(sid);
+  if (wasFav) favoriteIds.delete(sid); else favoriteIds.add(sid);
+  // Persist via Supabase progress table
+  if (_dbUser) {
+    dbUpsertProg(_dbUser.id, sid, { favorited: !wasFav });
+  }
+  // Update card button without full re-render
+  const btn = document.querySelector('.fav-btn[data-vid="' + sid + '"]');
+  if (btn) {
+    btn.classList.toggle('fav-active', !wasFav);
+    btn.textContent = !wasFav ? '❤️' : '🤍';
+    btn.title = !wasFav ? 'Remove from Favorites' : 'Add to Favorites';
+  }
+  showToast(wasFav ? 'Removed from Favorites' : '❤️ Added to Favorites');
+}
+
 function renderSidebar() {
   refreshNavManage();
   const role = effectiveRole();
@@ -2600,15 +2702,56 @@ function renderSidebar() {
   }
   const allAssets  = dedupeAssets(allAssetsRaw);
   const assetCount = allAssets.length;
+  const myFolders  = getFolders();
+
+  // Build sidebar: grouped by folder
+  // Cats with a folder
+  const catsInFolders = new Set();
+  const folderHtml = Object.entries(myFolders).map(([folderName, fd]) => {
+    const folderCats = vcats.filter(c => cats[c]?.folder === folderName);
+    folderCats.forEach(c => catsInFolders.add(c));
+    if (!folderCats.length) return '';
+    const isOpen = fd.open !== false;
+    const catItems = folderCats.map(c =>
+      '<div class="nav-item cat-nav-item ' + (activeFilter===c?'active':'') + '" onclick="setFilter(\'' + c + '\')">'
+      + cats[c].icon + ' ' + c + '</div>'
+    ).join('');
+    return '<div class="folder-group">'
+      + '<div class="folder-header" onclick="toggleFolder(\'' + folderName.replace(/'/g,"\\'") + '\')">'
+      + '<span style="font-size:15px">' + (fd.icon||'📁') + '</span>'
+      + '<span class="folder-name">' + folderName + '</span>'
+      + '<span class="folder-arrow ' + (isOpen?'open':'') + '">▶</span>'
+      + '</div>'
+      + '<div class="folder-children" style="' + (isOpen?'':'display:none') + '">'
+      + catItems
+      + '</div></div>';
+  }).join('');
+
+  // Cats NOT in any folder
+  const topCats = vcats.filter(c => !catsInFolders.has(c));
+  const topCatHtml = topCats.map(c =>
+    '<div class="nav-item cat-nav-item ' + (activeFilter===c?'active':'') + '" onclick="setFilter(\'' + c + '\')">'
+    + cats[c].icon + ' ' + c + '</div>'
+  ).join('');
+
+  // Favorites nav item
+  const favCount = favoriteIds.size;
+  const favItem = favCount > 0
+    ? '<div class="nav-item cat-nav-item ' + (activeFilter==='__favs__'?'active':'') + '" onclick="setFilter(\'__favs__\')">'
+      + '❤️ Favorites <span style="margin-left:auto;font-size:11px;background:rgba(220,38,38,.15);color:#dc2626;padding:1px 7px;border-radius:10px">' + favCount + '</span></div>'
+    : '';
 
   document.getElementById('sidebar-cats').innerHTML =
-    `<div class="nav-item ${activeFilter==='All'?'active':''}" onclick="setFilter('All')">📋 All Resources</div>` +
-    vcats.map(c =>
-      `<div class="nav-item ${activeFilter===c?'active':''}" onclick="setFilter('${c}')">${cats[c].icon} ${c}</div>`
-    ).join('') +
-    (canSeeAssets && assetCount > 0
-      ? `<div class="nav-item ${activeFilter==='__assets__'?'active':''}" onclick="setFilter('__assets__')">📎 Assets <span style="margin-left:auto;font-size:11px;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:10px">${assetCount}</span></div>`
-      : '');
+    '<div class="nav-item ' + (activeFilter==='All'?'active':'') + '" onclick="setFilter(\'All\')">📋 All Resources</div>'
+    + favItem
+    + folderHtml
+    + topCatHtml
+    + (assetCount ? '<div class="nav-item cat-nav-item ' + (activeFilter==='__assets__'?'active':'') + '" onclick="setFilter(\'__assets__\')">📎 Assets <span style="margin-left:auto;font-size:11px;background:rgba(255,255,255,.1);padding:1px 7px;border-radius:10px">' + assetCount + '</span></div>' : '');
+
+  // Topbar, notif, tasks, manage nav
+  const archiveCount = videos.filter(v=>v.archived).length + (videos.flatMap(v=>v.files||[]).filter(f=>f.archived).length);
+  const archEl = document.getElementById('archive-nav-item');
+  if (archEl) archEl.innerHTML = '📦 Archive' + (archiveCount ? ' <span style="background:rgba(245,158,11,.15);color:#f59e0b;border-radius:10px;padding:0 5px;font-size:11px;margin-left:4px">' + archiveCount + '</span>' : '');
 }
 function refreshNavManage() {
   const role    = currentUser?.role;
@@ -2880,14 +3023,25 @@ function renderHome() {
 
   // Bookmarks strip
   let bookmarkStrip = '';
-  if (activeFilter === 'All' && !searchQuery && bookmarkIds.size > 0) {
-    const bvids = [...bookmarkIds].map(id=>videos.find(v=>v.id===id)).filter(Boolean).filter(v=>!isExpired(v));
-    if (bvids.length) {
-      bookmarkStrip = `<div class="strip-section" style="margin-top:4px"><div class="strip-hdr"><span style="font-size:16px">🔖</span><div class="strip-title">Bookmarks</div></div>
-        <div class="strip-scroll">${bvids.map(v=>stripCard(v)).join('')}</div>
-      </div>`;
+  if (activeFilter === 'All' && !searchQuery && bookmarkStrip.length === 0 && favoriteIds.size > 0) {
+    const favVids = [...favoriteIds].map(id=>videos.find(v=>String(v.id)===String(id))).filter(Boolean).filter(v=>!isExpired(v)&&videoVisible(v));
+    if (favVids.length) {
+      bookmarkStrip = `<div class="strip-section" style="margin-top:4px"><div class="strip-hdr"><span style="font-size:16px">❤️</span><div class="strip-title">Favorites</div></div><div class="strip-scroll">${favVids.map(v=>stripCard(v)).join('')}</div></div>`;
     }
   }
+  // Favorites filter page
+  if (activeFilter === '__favs__') {
+    const favVids = [...favoriteIds].map(id=>videos.find(v=>String(v.id)===String(id))).filter(Boolean).filter(v=>!isExpired(v)&&videoVisible(v));
+    const m0 = {icon:'❤️',color:'#dc2626',bg:'rgba(220,38,38,.1)',gradient:'#1a0a0a,#2a0a0a'};
+    const favHtml = '<div class="cat-section"><div class="sec-header"><div class="sec-icon" style="background:rgba(220,38,38,.1);color:#dc2626">❤️</div><div class="sec-name">Favorites</div><div class="sec-count">' + favVids.length + ' video' + (favVids.length!==1?'s':'') + '</div></div>'
+      + (favVids.length
+        ? '<div class="video-grid">' + favVids.map(v=>videoCard(v, cats[v.category]||m0)).join('') + '</div>'
+        : '<div style="padding:32px;text-align:center;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">🤍</div><div style="font-size:16px;font-weight:700">No favorites yet</div><div style="font-size:13px;margin-top:6px">Tap ❤️ on any video to save it here</div></div>')
+      + '</div>';
+    document.getElementById('main-content').innerHTML = '<div class="lib-body"><div class="filter-row">' + filterBtns + '</div>' + favHtml + '</div>';
+    return;
+  }
+  // (favorites strip above)
 
   document.getElementById('main-content').innerHTML =
     (showHero ? renderHero() : '') +
@@ -3171,6 +3325,71 @@ function renderVideosPanel() {
 // ===============================================================
 function renderCatsPanel() {
   const catList = Object.keys(cats).filter(c=>!cats[c]?.archived);
+  const myFolders = getFolders();
+  const folderNames = Object.keys(myFolders);
+
+  // Folder management section
+  const folderCards = folderNames.map(fname => {
+    const fd = myFolders[fname];
+    const count = catList.filter(c=>cats[c]?.folder===fname).length;
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;margin-bottom:8px">'
+      + '<span style="font-size:22px">' + (fd.icon||'📁') + '</span>'
+      + '<div style="flex:1"><div style="font-weight:700;font-size:14px">' + fname + '</div>'
+      + '<div style="font-size:12px;color:var(--muted)">' + count + ' categor' + (count===1?'y':'ies') + '</div></div>'
+      + '<button onclick="renameFolderPrompt(\'' + fname.replace(/'/g,"\\'") + '\')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Rename</button>'
+      + '<button onclick="deleteFolder(\'' + fname.replace(/'/g,"\\'") + '\')" class="del-btn" style="padding:4px 10px;font-size:12px">Delete</button>'
+      + '</div>';
+  }).join('');
+
+  const catCards = catList.map(c => {
+    const m = cats[c], count = videos.filter(v=>v.category===c&&!v.archived).length;
+    const canDel = catList.length > 1;
+    const currentFolder = cats[c]?.folder || '';
+    const folderSelect = folderNames.length
+      ? '<select onchange="setCatFolder(\'' + c.replace(/'/g,"\\'") + '\',this.value)" style="font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:2px 6px;color:var(--muted);cursor:pointer">'
+        + '<option value="">No folder</option>'
+        + folderNames.map(f => '<option value="' + f + '" ' + (currentFolder===f?'selected':'') + '>' + (myFolders[f].icon||'📁') + ' ' + f + '</option>').join('')
+        + '</select>'
+      : '';
+    return '<div class="cat-card" draggable="true" ondragstart="catDragStart(event,\'' + c + '\')" ondragover="catDragOver(event)" ondrop="catDragDrop(event,\'' + c + '\')" ondragend="catDragEnd(event)">'
+      + '<span class="drag-handle" style="font-size:14px;cursor:grab;color:var(--muted)">⠿</span>'
+      + '<div class="cat-card-icon">' + m.icon + '</div>'
+      + '<div class="cat-card-info"><div class="cat-card-name">' + c + '</div>'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-top:3px">'
+      + '<div class="cat-card-count">' + count + ' video' + (count!==1?'s':'') + '</div>'
+      + folderSelect
+      + '</div></div>'
+      + '<div style="display:flex;gap:6px">'
+      + (count>0?'<button class="archive-btn" style="font-size:11px;padding:4px 9px" onclick="archiveCategory(\'' + c + '\')" title="Archive">Archive</button>':'')
+      + '<button class="cat-del-btn" onclick="deleteCategory(\'' + c + '\')" ' + (!canDel?'disabled':'') + '>'
+      + (count>0?'Delete+Move ('+count+')':'Delete') + '</button>'
+      + '</div></div>';
+  }).join('');
+
+  const emojiOpts = ['📁','🎯','🚀','💡','📚','🏆','⚡','🎓','🔑','📊','🌟','🤝','💼','🔧','📋'].map(e=>'<div class="emoji-opt ' + (selectedEmoji===e?'sel':'') + '" onclick="selEmoji(\'' + e + '\')">' + e + '</div>').join('');
+
+  return '<div class="acard">'
+    + '<div class="acard-title">📁 Folders</div>'
+    + '<div class="acard-sub">Group categories into folders for easier navigation.</div>'
+    + (folderCards || '<div style="color:var(--muted);font-size:13px;padding:8px 0">No folders yet.</div>')
+    + '<div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">'
+    + '<input type="text" id="new-folder-name" placeholder="Folder name" style="flex:1;min-width:140px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:9px 13px;font-size:14px;color:var(--text);outline:none"/>'
+    + '<input type="text" id="new-folder-icon" placeholder="📁" maxlength="2" style="width:60px;background:var(--bg);border:1.5px solid var(--border);border-radius:9px;padding:9px 13px;font-size:18px;color:var(--text);outline:none;text-align:center"/>'
+    + '<button class="btn-green-lg" onclick="addFolder()" style="margin-top:0">Create Folder</button>'
+    + '</div></div>'
+    + '<div class="acard">'
+    + '<div class="acard-title">Add New Category</div>'
+    + '<div class="add-cat-row">'
+    + '<div class="ff"><label>Category Name</label><input type="text" id="new-cat-name" placeholder="e.g. Product Training" maxlength="40"/></div>'
+    + '<div class="ff"><label>Icon</label><div class="emoji-picker">' + emojiOpts + '</div></div>'
+    + '</div>'
+    + '<button class="btn-green-lg" onclick="addCategory()">Add Category</button>'
+    + '</div>'
+    + '<div class="acard">'
+    + '<div class="acard-title">Current Categories (' + catList.length + ')</div>'
+    + '<div class="cat-grid">' + catCards + '</div>'
+    + '</div>';
+}
   const catCards = catList.map(c => {
     const m = cats[c], count = videos.filter(v=>v.category===c&&!v.archived).length, canDel = catList.length>1;
     return `<div class="cat-card" draggable="true"
@@ -3193,16 +3412,6 @@ function renderCatsPanel() {
   <div class="acard">
     <div class="acard-title">Add New Category</div>
     <div class="add-cat-row">
-      <div class="ff"><label>Category Name</label><input type="text" id="new-cat-name" placeholder="e.g. Product Training" maxlength="40"/></div>
-      <div class="ff"><label>Icon</label><div class="emoji-picker">${emojiOpts}</div></div>
-    </div>
-    <button class="btn-green-lg" onclick="addCategory()">Add Category</button>
-  </div>
-  <div class="acard">
-    <div class="acard-title">Current Categories (${catList.length})</div>
-    <div class="cat-grid">${catCards}</div>
-  </div>`;
-}
 
 // Category drag-drop functions defined further down in original file
 
@@ -4877,13 +5086,15 @@ async function autofetchDuration(url) {
 // Build filter buttons for library
 function buildFilterBtns(vcats, assetCount) {
   const hasAssets = assetCount > 0;
+  const hasFavs = favoriteIds.size > 0;
   const allBtn = '<button class="filter-btn ' + (activeFilter==='All'?'active':'') + '" onclick="setFilter(\'All\')">All</button>';
+  const favBtn = hasFavs ? '<button class="filter-btn ' + (activeFilter==='__favs__'?'active':'') + '" onclick="setFilter(\'__favs__\')">❤️ Favorites</button>' : '';
   const catBtns = vcats.map(function(c) {
     const m = cats[c]||{icon:'X'};
     return '<button class="filter-btn ' + (activeFilter===c?'active':'') + '" onclick="setFilter(\'' + c + '\')">' + m.icon + ' ' + c + '</button>';
   }).join('');
   const assetBtn = hasAssets ? '<button class="filter-btn ' + (activeFilter==='__assets__'?'active':'') + '" onclick="setFilter(\'__assets__\')">📎 Assets</button>' : '';
-  return allBtn + catBtns + assetBtn;
+  return allBtn + favBtn + catBtns + assetBtn;
 }
 
 // Video card HTML
@@ -4898,11 +5109,13 @@ function videoCard(v, m) {
   const isNew = v.addedAt && (Date.now() - new Date(v.addedAt).getTime()) < 7*86400000;
   const reqDeadline = getRequiredDeadline && getRequiredDeadline(v) ? formatDeadline(getRequiredDeadline(v)) : '';
 
+  const isFav = favoriteIds.has(String(v.id));
   return '<div class="video-card" data-vid-id="' + v.id + '" onclick="openModal(\'' + v.id + '\')">' +
     '<div class="vthumb">' +
     thumbHtml +
     '<div class="vthumb-overlay"></div>' +
     '<div class="play-btn"><div class="ptri"></div></div>' +
+    '<button class="fav-btn ' + (isFav?'fav-active':'') + '" data-vid="' + v.id + '" onclick="event.stopPropagation();toggleFavorite(\'' + v.id + '\')" title="' + (isFav?'Remove from Favorites':'Add to Favorites') + '">' + (isFav?'❤️':'🤍') + '</button>' +
     (v.featured ? '<div class="badge-feat">★ Featured</div>' : '') +
     (isNew ? '<div class="badge-new">New</div>' : '') +
     (v.required && !watched ? '<div class="badge-required">★ Required ' + reqDeadline + '</div>' : '') +
