@@ -4894,7 +4894,14 @@ function openModal(id) {
   } else {
     var ytId2 = extractYouTubeId(v.url);
     if (ytId2) {
-      va.innerHTML = '<iframe id="modal-yt-frame" src="https://www.youtube.com/embed/'+ytId2+'?enablejsapi=1&origin='+encodeURIComponent(location.origin)+'" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+      // disablekb=1 prevents keyboard shortcuts, rel=0 hides related, modestbranding=1 hides logo
+      // The overlay div blocks right-click and the YouTube logo click for members
+      var ytSrc = 'https://www.youtube.com/embed/'+ytId2+'?enablejsapi=1&origin='+encodeURIComponent(window.location.origin)+'&rel=0&modestbranding=1&disablekb=0';
+      var blockOverlay = (effectiveRole()==='member')
+        ? '<div style="position:absolute;bottom:0;right:0;width:180px;height:40px;z-index:10;background:transparent;" title=""></div>'
+        : '';
+      va.innerHTML = '<div style="position:relative;width:100%;height:100%"><iframe id="modal-yt-frame" src="'+ytSrc+'" allow="autoplay; encrypted-media" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:none"></iframe>'+blockOverlay+'</div>';
+      setupYouTubeTracking();codeURIComponent(location.origin)+'" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
       setupYouTubeTracking();
     } else {
       va.innerHTML = '<iframe src="'+embedUrl+'" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
@@ -4928,7 +4935,7 @@ function openModal(id) {
       return '<div class="attach-item">'+
         '<div class="attach-icon">'+fileIcon(f.type,f.label||f.name)+'</div>'+
         '<div class="attach-info"><div class="attach-name">'+( f.label||f.name)+'</div><div class="attach-size">'+formatBytes(f.size)+'</div></div>'+
-        '<button class="attach-dl-btn" onclick="downloadFile(\''+v.id+'\','+i+')">Download</button>'+
+        (currentUser&&currentUser.role!=='member'?'<button class="attach-dl-btn" onclick="downloadFile(\''+v.id+'\','+i+')">Download</button>':'')+
         (currentUser&&currentUser.role==='admin'?'<button onclick="archiveAsset(\''+v.id+'\','+i+')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:4px 9px;font-size:11px;cursor:pointer" title="Archive">Archive</button>':'')+
         '</div>';
     }).join('');
@@ -5123,8 +5130,19 @@ const EMAILJS_TEMPLATE_ID = 'template_k9a35f7';
 const EMAILJS_RESET_TEMPLATE_ID = 'template_ax27gyu';
 
 function initEmailJS() {
-  if (EMAILJS_PUBLIC_KEY && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY_HERE' && typeof emailjs !== 'undefined') {
-    try { emailjs.init(EMAILJS_PUBLIC_KEY); } catch(e) { console.warn('EmailJS init failed:', e); }
+  if (!EMAILJS_PUBLIC_KEY || EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY_HERE') {
+    console.warn('EmailJS: Public key not set');
+    return;
+  }
+  if (typeof emailjs === 'undefined') {
+    console.warn('EmailJS: Library not loaded — check CDN');
+    return;
+  }
+  try {
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+    console.log('EmailJS: Initialized ✅');
+  } catch(e) {
+    console.error('EmailJS init error:', e);
   }
 }
 
