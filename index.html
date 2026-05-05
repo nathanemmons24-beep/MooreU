@@ -2398,32 +2398,77 @@ function openAssetPreview(videoId, fileIdx) {
   const f = v.files[fileIdx];
   _apVideoId = videoId; _apFileIdx = fileIdx;
 
-  const name  = f.label || f.name;
+  const name  = f.label || f.name || 'File';
   const type  = f.type || '';
   const icon  = fileIcon(type, name);
-  const isImg = type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg|bmp)$/i.test(name);
-  const isPdf = type === 'application/pdf' || name.toLowerCase().endsWith('.pdf');
+  const ext   = name.split('.').pop().toLowerCase();
+
+  // Source: prefer external URL, fall back to base64 data
+  const src = f.url || f.data || '';
+
+  const isImg  = type.startsWith('image/') || /\.(png|jpg|jpeg|gif|webp|svg|bmp)$/i.test(name);
+  const isPdf  = type === 'application/pdf' || ext === 'pdf';
+  const isVid  = type.startsWith('video/') || /\.(mp4|webm|mov|ogg)$/i.test(name);
+  const isAudio= type.startsWith('audio/') || /\.(mp3|wav|ogg|aac|m4a)$/i.test(name);
+
+  // For Google Drive links — convert to direct embed URL
+  let embedSrc = src;
+  if (src.includes('drive.google.com/file/d/')) {
+    const match = src.match(/\/file\/d\/([^/]+)/);
+    if (match) embedSrc = 'https://drive.google.com/file/d/' + match[1] + '/preview';
+  }
+  // For Dropbox — convert to direct link
+  if (src.includes('dropbox.com') && src.includes('?dl=0')) {
+    embedSrc = src.replace('?dl=0', '?raw=1');
+  }
 
   document.getElementById('ap-icon').textContent = icon;
   document.getElementById('ap-name').textContent = name;
-  document.getElementById('ap-sub').textContent  = `${v.title} · ${formatBytes(f.size)}`;
+  document.getElementById('ap-sub').textContent  = v.title + ' · ' + formatBytes(f.size);
 
   const body = document.getElementById('ap-body');
-  if (isImg) {
-    body.innerHTML = `<img src="${f.data}" alt="${name}" />`;
+
+  if (!src) {
+    body.innerHTML = '<div class="asset-preview-unsupported">'
+      + '<div class="big-icon">' + icon + '</div>'
+      + '<p><strong>' + name + '</strong></p>'
+      + '<p style="margin-top:4px;color:var(--muted)">No file data available.</p>'
+      + '<p style="font-size:12px;color:var(--muted)">Re-upload the file to enable preview.</p>'
+      + '</div>';
+    body.style.background = '#111';
+  } else if (isImg) {
+    body.innerHTML = '<img src="' + embedSrc + '" alt="' + name + '" style="max-width:100%;max-height:100%;object-fit:contain"/>';
     body.style.background = '#111';
   } else if (isPdf) {
-    body.innerHTML = `<iframe src="${f.data}" title="${name}"></iframe>`;
+    body.innerHTML = '<iframe src="' + embedSrc + '" title="' + name + '" style="width:100%;height:100%;border:none"></iframe>';
+    body.style.background = '#fff';
+  } else if (isVid) {
+    body.innerHTML = '<video controls style="width:100%;height:100%;background:#000"><source src="' + embedSrc + '">Your browser does not support video preview.</video>';
+    body.style.background = '#000';
+  } else if (isAudio) {
+    body.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px">'
+      + '<div style="font-size:64px">' + icon + '</div>'
+      + '<div style="font-weight:700;color:#fff">' + name + '</div>'
+      + '<audio controls style="width:80%"><source src="' + embedSrc + '">Your browser does not support audio preview.</audio>'
+      + '</div>';
+    body.style.background = '#111';
+  } else if (src.includes('drive.google.com') || src.includes('dropbox.com') || src.includes('docs.google.com')) {
+    // Google Docs / Sheets / Slides
+    let gEmbedSrc = embedSrc;
+    if (src.includes('docs.google.com') && !src.includes('/preview') && !src.includes('/pub')) {
+      gEmbedSrc = src.replace(/\/edit.*$/, '/preview');
+    }
+    body.innerHTML = '<iframe src="' + gEmbedSrc + '" title="' + name + '" style="width:100%;height:100%;border:none" allow="autoplay"></iframe>';
     body.style.background = '#fff';
   } else {
-    // Unsupported preview — show info and big download prompt
-    const ext = name.split('.').pop().toUpperCase();
-    body.innerHTML = `<div class="asset-preview-unsupported">
-      <div class="big-icon">${icon}</div>
-      <p><strong>${name}</strong></p>
-      <p style="margin-top:4px">Preview not available for <strong>.${ext}</strong> files.</p>
-      <em>Click Download to open this file on your device.</em>
-    </div>`;
+    // Unknown format — show info card
+    body.innerHTML = '<div class="asset-preview-unsupported">'
+      + '<div class="big-icon">' + icon + '</div>'
+      + '<p><strong>' + name + '</strong></p>'
+      + '<p style="margin-top:4px">Preview not available for <strong>.' + ext.toUpperCase() + '</strong> files.</p>'
+      + '<em>Use the Download button to open this file.</em>'
+      + (src ? '<br><br><a href="' + src + '" target="_blank" style="color:var(--green);font-weight:700;text-decoration:none">🔗 Open in new tab</a>' : '')
+      + '</div>';
     body.style.background = '#111';
   }
 
