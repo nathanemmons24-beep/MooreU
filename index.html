@@ -3866,7 +3866,7 @@ function handleThumbUpload(e){
 let _addingVideo = false;
 function addVideo(){
   if(_addingVideo){ showToast('Already saving, please wait...'); return; }
-  _addingVideo = true;
+
   const title=document.getElementById('new-title')?.value.trim();
   let cat=document.getElementById('new-cat')?.value;
   const dur=document.getElementById('new-dur')?.value.trim()||'0:00';
@@ -3875,37 +3875,69 @@ function addVideo(){
   const tagsRaw=document.getElementById('new-tags')?.value||'';
   const expires=document.getElementById('new-expires')?.value||'';
   const required=document.getElementById('new-required')?.checked||false;
-  if(!title){showToast('Enter a video title');return;}
+
+  // Validate BEFORE setting the lock
+  if(!title){ showToast('Enter a video title'); return; }
   if(cat==='__new__'){
     const newCatName=document.getElementById('new-cat-name-inline')?.value.trim();
-    if(!newCatName){showToast('Enter a name for the new category');return;}
+    if(!newCatName){ showToast('Enter a name for the new category'); return; }
     if(!cats[newCatName]){
       const idx=Object.keys(cats).length%6;
       const colors=['#4a7c3f','#1a5276','#7c3aed','#c0392b','#b45309','#2c5f1a'];
-      const icons=['X','X','X','X','X','X'];
-      cats[newCatName]={icon:selectedEmoji||'X',color:colors[idx],bg:colors[idx]+'22',gradient:'#1a1a1a,#2a2a2a'};
+      cats[newCatName]={icon:selectedEmoji||'📁',color:colors[idx],bg:colors[idx]+'22',gradient:'#1a1a1a,#2a2a2a'};
       showToast(`Category "${newCatName}" created!`);
     }
     cat=newCatName;
   }
-  if(!cat||!cats[cat]){showToast('Select or create a category');return;}
+  if(!cat||!cats[cat]){ showToast('Select or create a category'); return; }
+
+  // All validation passed — now lock
+  _addingVideo = true;
+
   const tags=tagsRaw.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
   const thumbVal=newThumb||newThumbUrl||'';
-  const newId='tmp_'+Date.now();
+  const newId='vid_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   const publishAt=document.getElementById('new-publish')?.value||'';
   const quiz=document.getElementById('new-has-quiz')?.checked?collectQuizData('new'):[];
-  videos.push({id:newId,title,category:cat,url,thumb:thumbVal,duration:dur,desc,
-    files:[...stagedFiles],tags,required,featured:false,expiresAt:expires,publishAt,
-    quiz,addedAt:new Date().toISOString(),sortOrder:videos.length});
-  newThumb='';newThumbUrl='';stagedFiles=[];
-  const durEl=document.getElementById('new-dur');
-  if(durEl){durEl.value='';durEl.readOnly=true;durEl.placeholder='Auto-detecting...';durEl.style.color='var(--muted)';}
-  const durStatus=document.getElementById('dur-status');
-  if(durStatus)durStatus.textContent=' — auto-detected from URL';
-  showToast('Saving...');renderManage();
-  saveData().then(()=>{showToast('Video saved to cloud!');_addingVideo=false;}).catch(()=>{_addingVideo=false;});
-}
 
+  const newVideo = {id:newId,title,category:cat,url,thumb:thumbVal,duration:dur,desc,
+    files:[...stagedFiles],tags,required,featured:false,expiresAt:expires,publishAt,
+    quiz,addedAt:new Date().toISOString(),sortOrder:videos.length};
+
+  // Add to local state
+  videos.push(newVideo);
+  newThumb='';newThumbUrl='';stagedFiles=[];
+
+  showToast('Saving...');
+  renderManage();
+
+  // Save ONLY this new video to Supabase (not all videos)
+  dbSaveVideo({
+    id:newId, title, category:cat, url, thumb:thumbVal, duration:dur,
+    description:desc, tags, required, featured:false,
+    expires_at:expires||null, publish_at:publishAt||null,
+    archived:false, sort_order:newVideo.sortOrder,
+    quiz:quiz.length?quiz:null,
+    added_at:newVideo.addedAt
+  }).then(async ()=>{
+    // Save files if any
+    for(const f of newVideo.files){
+      if(f._staged){
+        await dbSaveFile({video_id:newId,name:f.name,label:f.label||f.name,
+          file_type:f.type,file_size:f.size,file_url:f.url||f.data||'',archived:false});
+      }
+    }
+    showToast('✅ Video saved!');
+    _addingVideo=false;
+  }).catch(err=>{
+    console.error('Save error:', err);
+    showToast('⚠ Save failed — check connection');
+    // Remove from local state if save failed
+    videos=videos.filter(v=>v.id!==newId);
+    _addingVideo=false;
+    renderManage();
+  });
+}
 // ===============================================================
 // MANAGE PAGE - MAIN RENDERER
 // ===============================================================
