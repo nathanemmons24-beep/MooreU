@@ -3669,11 +3669,33 @@ function dragDrop(e,targetId){
   videos.forEach((v,i)=>v.sortOrder=i);_dragId=null;saveData();renderManage();
 }
 
-function deleteVideo(id){
-  const sid=String(id);if(!confirm('Delete this video permanently?'))return;
-  const v=videos.find(x=>String(x.id)===sid);if(v)dbDelVideo(v.id);
-  videos=videos.filter(v=>String(v.id)!==sid);selectedIds.delete(sid);
-  showToast('Video deleted');renderManage();
+async function deleteVideo(id){
+  const sid=String(id);
+  if(!confirm('Delete this video permanently?')) return;
+  const v=videos.find(x=>String(x.id)===sid);
+  if(!v){ showToast('Video not found'); return; }
+  
+  // Delete from Supabase first
+  showToast('Deleting...');
+  try {
+    await dbDelVideo(v.id);
+    // Also delete associated files
+    if(v.files && v.files.length) {
+      for(const f of v.files) {
+        if(f._id) await dbDelFile(f._id);
+      }
+    }
+  } catch(e) {
+    console.error('Delete error:', e);
+    showToast('⚠ Delete failed — check connection');
+    return;
+  }
+  
+  // Remove from local state
+  videos = videos.filter(v=>String(v.id)!==sid);
+  selectedIds.delete(sid);
+  showToast('✅ Video deleted');
+  renderManage();
 }
 
 function toggleFeatured(id){
