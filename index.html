@@ -1179,7 +1179,9 @@ async function syncFromDB(){
     try {
       const vRows=await dbGetVideos()||[];
       const fRows=await dbGetFiles()||[];
-      videos=vRows.map(v=>({
+      // Filter out locally-deleted videos
+      const deletedIds = new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
+      videos=vRows.filter(v=>!deletedIds.has(String(v.id))).map(v=>({
         id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
         duration:v.duration,desc:v.description,tags:v.tags||[],required:v.required,
         featured:v.featured,expiresAt:v.expires_at||'',publishAt:v.publish_at||'',
@@ -1187,7 +1189,11 @@ async function syncFromDB(){
         sortOrder:v.sort_order,addedAt:v.added_at,
         files:fRows.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label,type:f.file_type,size:f.file_size,url:f.file_url,archived:f.archived||false}))
       }));
-      if(!vRows.length){videos=clone(DEFAULT_VIDEOS).map(v=>({...v,featured:false}));[0,1,2].forEach(i=>{if(videos[i])videos[i].featured=true;});}
+      if(!vRows.length){
+        const deletedIds2 = new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
+        videos=clone(DEFAULT_VIDEOS).map(v=>({...v,featured:false})).filter(v=>!deletedIds2.has(String(v.id)));
+        [0,1,2].forEach(i=>{if(videos[i])videos[i].featured=true;});
+      }
     } catch(e){ console.warn('Videos load failed',e); }
 
     // Users
@@ -3674,26 +3680,37 @@ async function deleteVideo(id){
   if(!confirm('Delete this video permanently?')) return;
   const v=videos.find(x=>String(x.id)===sid);
   if(!v){ showToast('Video not found'); return; }
-  
-  // Delete from Supabase first
+
+  // Check if this is demo/local data (not yet saved to Supabase)
+  const isDemoId = /^[0-9]+$/.test(sid) || sid.startsWith('tmp_');
+
   showToast('Deleting...');
-  try {
-    await dbDelVideo(v.id);
-    // Also delete associated files
-    if(v.files && v.files.length) {
-      for(const f of v.files) {
-        if(f._id) await dbDelFile(f._id);
+
+  if(!isDemoId) {
+    // Real Supabase video — delete from DB
+    try {
+      await dbDelVideo(v.id);
+      if(v.files && v.files.length) {
+        for(const f of v.files) {
+          if(f._id) await dbDelFile(f._id);
+        }
       }
+    } catch(e) {
+      console.warn('Supabase delete error (removing locally anyway):', e);
     }
-  } catch(e) {
-    console.error('Delete error:', e);
-    showToast('⚠ Delete failed — check connection');
-    return;
   }
-  
-  // Remove from local state
-  videos = videos.filter(v=>String(v.id)!==sid);
+
+  // Always remove from local state
+  videos = videos.filter(x=>String(x.id)!==sid);
   selectedIds.delete(sid);
+
+  // Persist the deletion list in localStorage so it survives page refresh
+  try {
+    const deleted = JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]');
+    if(!deleted.includes(sid)) deleted.push(sid);
+    localStorage.setItem('mhu_deleted_ids', JSON.stringify(deleted));
+  } catch(e){}
+
   showToast('✅ Video deleted');
   renderManage();
 }
