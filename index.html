@@ -3644,10 +3644,42 @@ function bulkMove(){
   videos.forEach(v=>{if(selectedIds.has(String(v.id)))v.category=target;});
   selectedIds.clear();saveData();showToast(`Moved ${n} to "${target}"`);renderManage();
 }
-function bulkDelete(){
-  if(!confirm(`Delete ${selectedIds.size} selected videos?`))return;
-  videos=videos.filter(v=>!selectedIds.has(String(v.id)));
-  selectedIds.clear();saveData();renderManage();
+async function bulkDelete(){
+  if(!selectedIds.size){ showToast('No videos selected'); return; }
+  if(!confirm(`Delete ${selectedIds.size} video${selectedIds.size>1?'s':''} permanently? This cannot be undone.`)) return;
+
+  showToast(`Deleting ${selectedIds.size} videos...`);
+  const ids = [...selectedIds];
+
+  // Delete each from Supabase
+  let deleted = 0;
+  for(const sid of ids){
+    const v = videos.find(x=>String(x.id)===sid);
+    if(!v) continue;
+    try {
+      await DB.del('mhu_videos', `id=eq.${v.id}`);
+      if(v.files && v.files.length){
+        for(const f of v.files){
+          if(f._id) await DB.del('mhu_files', `id=eq.${f._id}`);
+        }
+      }
+      deleted++;
+    } catch(e) {
+      console.warn('[BulkDelete] Failed for', sid, e);
+    }
+    // Save to deleted list in localStorage
+    try {
+      const dl = JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]');
+      if(!dl.includes(sid)) dl.push(sid);
+      localStorage.setItem('mhu_deleted_ids', JSON.stringify(dl));
+    } catch(e){}
+  }
+
+  // Remove from local state
+  videos = videos.filter(v=>!selectedIds.has(String(v.id)));
+  selectedIds.clear();
+  showToast(`✅ Deleted ${deleted} video${deleted>1?'s':''}`);
+  renderManage();
 }
 
 function duplicateVideo(id){
