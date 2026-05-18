@@ -1628,7 +1628,26 @@ const COLOR_PALETTES = [
   {color:'#784212',bg:'rgba(120,66,18,.12)', gradient:'#261407,#33190a'},
   {color:'#1b4f72',bg:'rgba(27,79,114,.12)', gradient:'#091726,#0d2033'},
 ];
-const EMOJI_OPTIONS = ['🚀','🕐','🏆','📋','💡','🛡️','💻','🤝','📊','🎯','🔧','🌟','📈','🧠','🎓','🔑','📣','⚡','🏗️','🌿'];
+const EMOJI_OPTIONS = [
+  '📁','🎯','🚀','💡','📚','🏆','⚡','🎓','🔑','📊','🌟','🤝','💼','🔧','📋',
+  '🎬','🎥','📹','🎞️','📽️','🎤','🎧','🎵','🎶','🎸','🥇','🏅','🎖️','🏵️','🎗️',
+  '📱','💻','🖥️','⌨️','🖱️','🖨️','📡','🔭','🔬','⚗️','🧪','🧬','🔋','💾','📀',
+  '🌍','🌎','🌏','🗺️','🏢','🏗️','🏛️','🏪','🏥','🏦','🚗','✈️','🚢','🚂','🛸',
+  '💰','💳','📈','📉','💹','🏦','💎','🪙','💴','💵','📦','🛒','🔖','🏷️','📬',
+  '👥','👤','🙋','🤷','💪','🤝','🫱','🫶','❤️','🧡','💛','💚','💙','💜','🖤',
+  '✅','❌','⚠️','🔴','🟡','🟢','🔵','🟣','⭐','🌙','☀️','🌈','🔥','❄️','💧',
+  '📝','✏️','🖊️','📌','📍','🗂️','🗃️','🗄️','📂','📓','📔','📒','📕','📗','📘',
+  '🧭','⏰','⏱️','📅','📆','🗓️','⏳','🔔','🔕','📢','📣','🔊','🔇','💬','💭',
+  '🎨','🖌️','🖼️','🎭','🎪','🎠','🎡','🎢','🎟️','🎫','🌺','🌸','🌼','🌻','🌹'
+];
+
+function selEmoji(e){
+  selectedEmoji = e;
+  // Update all emoji pickers on the page
+  document.querySelectorAll('.emoji-opt').forEach(el => {
+    el.classList.toggle('sel', el.textContent === e);
+  });
+}
 const FEATURED_IDS = [1, 5, 8];
 const AVATAR_COLORS = ['#4a7c3f','#1a5276','#6d4c41','#4a235a','#784212','#1b4f72','#145a32','#c0392b'];
 
@@ -3310,11 +3329,20 @@ function openPathDetail(pathId) {
 // MANAGE PAGE - VIDEOS PANEL
 // ===============================================================
 function renderVideosPanel() {
+function renderVideosPanel() {
   const catOpts = Object.keys(cats).filter(c=>!cats[c]?.archived).map(c=>`<option>${c}</option>`).join('');
-  const activeVideos = videos.filter(v => !v.archived);
+  const allActive = videos.filter(v => !v.archived);
+  const sq = (_videoSearch||''). toLowerCase().trim();
+  const activeVideos = sq ? allActive.filter(v=>v.title.toLowerCase().includes(sq)||(v.category||''). toLowerCase().includes(sq)||(v.tags||[]).some(t=>t.includes(sq))) : allActive;
+  const PAGE_SIZE = _PAGE_SIZE;
+  if(typeof window._videoPage === 'undefined') window._videoPage = 0;
+  const totalPages = Math.max(1, Math.ceil(activeVideos.length / PAGE_SIZE));
+  if(window._videoPage >= totalPages) window._videoPage = totalPages - 1;
+  const pageStart = window._videoPage * PAGE_SIZE;
+  const pageVideos = activeVideos.slice(pageStart, pageStart + PAGE_SIZE);
   const allIds = activeVideos.map(v=>v.id);
   const allChecked = allIds.length>0 && allIds.every(id=>selectedIds.has(id));
-  const rows = activeVideos.map(v => {
+  const rows = pageVideos.map(v => {
     const t=bestThumb(v); const catM=cats[v.category]||{gradient:'#1a1a1a,#2a2a2a',icon:'X'};
     const tc = t ? `<img src="${t}" onerror="this.style.display='none'">` : `<div class="nth" style="background:linear-gradient(135deg,${catM.gradient})">${catM.icon}</div>`;
     const isChecked = selectedIds.has(v.id);
@@ -3420,7 +3448,11 @@ function renderVideosPanel() {
     <button class="btn-green-lg" onclick="addVideo()" style="margin-top:12px">Add to Library</button>
   </div>
   <div class="acard">
-    <div class="acard-title">Current Resources (${activeVideos.length})</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <div class="acard-title" style="margin:0">Current Resources (${activeVideos.length}${sq?' matching':''}/${allActive.length} total)</div>
+      <input type="text" value="${_videoSearch}" oninput="setVideoSearch(this.value)" placeholder="🔍 Search videos..." style="margin-left:auto;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none;min-width:200px"/>
+      ${_videoSearch?`<button onclick="setVideoSearch('')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">✕ Clear</button>`:''}
+    </div>
     ${bulkBar2}
     <div class="vtable-wrap">
       <table class="vtable">
@@ -3431,6 +3463,7 @@ function renderVideosPanel() {
         </tr></thead>
         <tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No videos yet. Add one above.</td></tr>'}</tbody>
       </table>
+      \${totalPages > 1 ? '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1.5px solid var(--border);margin-top:4px"><button onclick="if(window._videoPage>0){window._videoPage--;renderManage()}" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer;color:var(--text)">← Prev</button><span style="font-size:13px;color:var(--muted)">Page '+( window._videoPage+1)+' of '+totalPages+' · '+activeVideos.length+' videos</span><button onclick="if(window._videoPage<'+( totalPages-1)+'){window._videoPage++;renderManage()}" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer;color:var(--text)">Next →</button></div>' : ''}
     </div>
   </div>`;
 }
@@ -3489,7 +3522,7 @@ function renderCatsPanel() {
       + '</div>';
   }).join('');
 
-  const emojiOpts = ['📁','🎯','🚀','💡','📚','🏆','⚡','🎓','🔑','📊','🌟','🤝','💼','🔧','📋'].map(e=>'<div class="emoji-opt ' + (selectedEmoji===e?'sel':'') + '" onclick="selEmoji(\'' + e + '\')">' + e + '</div>').join('');
+  const emojiOpts = EMOJI_OPTIONS.map(e=>'<div class="emoji-opt ' + (selectedEmoji===e?'sel':'') + '" onclick="selEmoji(\'' + e + '\')" title="' + e + '">' + e + '</div>').join('');
 
   return '<div class="acard">'
     + '<div class="acard-title" style="display:flex;align-items:center;gap:8px"><span style="background:var(--green-bg);color:var(--green);width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px">📁</span> Folders</div>'
@@ -4127,16 +4160,22 @@ function renderTeamPanel(){
   if(viewerRole==='manager'){all=all.filter(u=>u.role!=='admin'&&(myMarkets.length===0||myMarkets.includes(u.market||'')));}
 
   const filtered=teamMarketFilter==='all'?all:all.filter(u=>u.market===teamMarketFilter);
-  const allMarkets=[...new Set(allUsers().map(u=>u.market||'').filter(Boolean))].sort();
-  const mktFilterOpts=['all',...allMarkets].map(m=>`<option value="${m}" ${teamMarketFilter===m?'selected':''}>${m==='all'?'All Markets':m}</option>`).join('');
+  const sq=(_teamSearch||''). toLowerCase().trim();
+  const searched=sq?filtered.filter(u=>(u.name||''). toLowerCase().includes(sq)||(u.email||''). toLowerCase().includes(sq)||(u.username||''). toLowerCase().includes(sq)):filtered;
+  const totalTeamPages=Math.max(1,Math.ceil(searched.length/_PAGE_SIZE));
+  if(_teamPage>=totalTeamPages)_teamPage=totalTeamPages-1;
+  const pageUsers=searched.slice(_teamPage*_PAGE_SIZE,(_teamPage+1)*_PAGE_SIZE);
+  const allMarkets=[...new Set(allUsers().map(u=>u.market||''). filter(Boolean))].sort();
+  const mktFilterOpts=['all',...allMarkets].map(m=>`<option value="${m}" ${teamMarketFilter===m?'selected':''}>  ${m==='all'?'All Markets':m}</option>`).join('');
 
-  const tableRows=filtered.map((u,i)=>{
+  const tableRows=pageUsers.map((u,i)=>{
     const isBuiltIn=SEED_USERS.some(s=>s.id===u.id);
     const uid=u.username||u.id;
     const canEdit=isAdminViewer&&!isBuiltIn;
     const canDeact=!isBuiltIn&&(isAdminViewer||(viewerRole==='manager'&&u.role==='member'));
     const roleCls=u.role==='admin'?'role-admin':u.role==='manager'?'role-manager':'role-member';
     return `<tr class="${u.inactive?'opacity-50':''}">
+      <td><input type="checkbox" class="team-select-cb" data-uid="${uid}" ${_teamSelectedIds.has(uid)?'checked':''} onchange="toggleTeamSelect('${uid}',this.checked)" style="width:15px;height:15px;cursor:pointer"/></td>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div style="width:28px;height:28px;border-radius:50%;background:${AVATAR_COLORS[i%AVATAR_COLORS.length]};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px;color:#fff;flex-shrink:0">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
         <div><div style="font-weight:600;font-size:13px">${u.name}${u.inactive?'<span style="margin-left:5px;font-size:10px;background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px">Inactive</span>':''}</div>
@@ -4173,18 +4212,30 @@ function renderTeamPanel(){
   </div>
   <button class="btn-green-lg" onclick="addTeamUser()" style="margin-top:12px;margin-bottom:20px">Add User</button>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px">
-    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--black)">Current Team (${filtered.length})</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <label style="font-size:12px;color:var(--muted);font-weight:600">Filter:</label>
-      <select onchange="teamMarketFilter=this.value;renderManage()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text);outline:none;cursor:pointer">${mktFilterOpts}</select>
-    </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:var(--black)">Team (${searched.length}${sq?' matching':''} / ${filtered.length})</div>
+    <input type="text" value="${_teamSearch}" oninput="setTeamSearch(this.value)" placeholder="🔍 Search name, email, username..." style="flex:1;min-width:180px;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>
+    ${_teamSearch?'<button onclick="setTeamSearch(\'\')" style="background:none;border:none;color:var(--muted);cursor:pointer">✕</button>':''}
+    <select onchange="teamMarketFilter=this.value;renderManage()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:13px;color:var(--text)">${mktFilterOpts}</select>
   </div>
+  ${_teamSelectedIds.size ? `
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px;margin-bottom:10px">
+    <span style="font-size:13px;font-weight:700;color:var(--green)">${_teamSelectedIds.size} selected</span>
+    <button onclick="bulkDeactivateTeam()" style="background:var(--amber-bg);color:#b45309;border:1px solid #f59e0b;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">⏸ Deactivate</button>
+    <button onclick="bulkRemoveTeam()" style="background:var(--red-bg,#fef2f2);color:#dc2626;border:1px solid #fca5a5;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑 Remove</button>
+    <button onclick="_teamSelectedIds.clear();renderManage()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;margin-left:auto">✕ Clear</button>
+  </div>` : ''}
   <div class="vtable-wrap">
     <table class="report-table">
-      <thead><tr><th>Name</th><th>Market</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
-      <tbody>${tableRows||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">No users match.</td></tr>'}</tbody>
+      <thead><tr><th style="width:32px"><input type="checkbox" onchange="selectAllTeam(this.checked)" style="width:15px;height:15px;cursor:pointer"/></th><th>Name</th><th>Market</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
+      <tbody>${tableRows||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No users found.</td></tr>'}
     </table>
-  </div>`;
+  </div>
+  ${totalTeamPages > 1 ? `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1.5px solid var(--border);margin-top:4px">
+    <button onclick="_teamPage=Math.max(0,_teamPage-1);renderManage()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer">← Prev</button>
+    <span style="font-size:13px;color:var(--muted)">Page ${_teamPage+1} of ${totalTeamPages} · ${searched.length} users</span>
+    <button onclick="_teamPage=Math.min(${totalTeamPages-1},_teamPage+1);renderManage()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer">Next →</button>
+  </div>` : ''}`;
 }
 
 // ===============================================================
@@ -5857,6 +5908,55 @@ if (typeof catDragStart === 'undefined') {
 
 // teamMarketFilter (global state)
 if (typeof teamMarketFilter === 'undefined') var teamMarketFilter = 'all';
+
+// Search + pagination state for each panel
+let _videoSearch = '';
+let _teamSearch  = '';
+let _catSearch   = '';
+let _teamPage    = 0;
+let _catPage     = 0;
+const _PAGE_SIZE = 15;
+
+function setVideoSearch(q){ _videoSearch=q; window._videoPage=0; renderManage(); }
+function setTeamSearch(q){  _teamSearch=q;  _teamPage=0; renderManage(); }
+function setCatSearch(q){   _catSearch=q;   _catPage=0; renderManage(); }
+
+// Bulk team actions
+let _teamSelectedIds = new Set();
+function toggleTeamSelect(uid, checked){
+  if(checked) _teamSelectedIds.add(uid); else _teamSelectedIds.delete(uid);
+  renderManage();
+}
+function selectAllTeam(checked){
+  const rows = document.querySelectorAll('.team-select-cb');
+  rows.forEach(cb=>{ if(checked) _teamSelectedIds.add(cb.dataset.uid); else _teamSelectedIds.delete(cb.dataset.uid); });
+  renderManage();
+}
+async function bulkDeactivateTeam(){
+  if(!_teamSelectedIds.size){ showToast('No users selected'); return; }
+  if(!confirm('Deactivate '+_teamSelectedIds.size+' users?')) return;
+  for(const uid of _teamSelectedIds){
+    const u=_dbUsers.find(x=>(x.username||x.id)===uid);
+    if(u&&!SEED_USERS.some(s=>s.id===u.id)){ u.inactive=true; await DB.patch('mhu_users','id=eq.'+u.id,{inactive:true}); }
+  }
+  _teamSelectedIds.clear();
+  showToast('Users deactivated');
+  renderManage();
+}
+async function bulkRemoveTeam(){
+  if(!_teamSelectedIds.size){ showToast('No users selected'); return; }
+  if(!confirm('Permanently remove '+_teamSelectedIds.size+' users?')) return;
+  for(const uid of _teamSelectedIds){
+    const u=_dbUsers.find(x=>(x.username||x.id)===uid);
+    if(u&&!SEED_USERS.some(s=>s.id===u.id)){
+      await DB.del('mhu_users','id=eq.'+u.id);
+      _dbUsers=_dbUsers.filter(x=>x.id!==u.id);
+    }
+  }
+  _teamSelectedIds.clear();
+  showToast('Users removed');
+  renderManage();
+}
 if (typeof analyticsMarket === 'undefined') var analyticsMarket = 'all';
 
 window.onerror = function(msg, src, line, col, err) {
