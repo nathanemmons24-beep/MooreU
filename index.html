@@ -4229,21 +4229,15 @@ function renderTeamPanel(){
     ${_teamSearch?'<button onclick="setTeamSearch(\'\')" style="background:none;border:none;color:var(--muted);cursor:pointer">✕</button>':''}
     <select onchange="teamMarketFilter=this.value;renderManage()" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:13px;color:var(--text)">${mktFilterOpts}</select>
   </div>
-  ${_teamSelectedIds.size ? `
-  <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px;margin-bottom:10px">
-    <span style="font-size:13px;font-weight:700;color:var(--green)">${_teamSelectedIds.size} selected</span>
-    <button onclick="bulkDeactivateTeam()" style="background:var(--amber-bg);color:#b45309;border:1px solid #f59e0b;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">⏸ Deactivate</button>
-    <button onclick="bulkRemoveTeam()" style="background:var(--red-bg,#fef2f2);color:#dc2626;border:1px solid #fca5a5;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑 Remove</button>
-    <button onclick="_teamSelectedIds.clear();renderManage()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;margin-left:auto">✕ Clear</button>
-  </div>` : ''}
+  ${_teamSelectedIds.size ? '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px;margin-bottom:10px"><span style="font-size:13px;font-weight:700;color:var(--green)">'+_teamSelectedIds.size+' selected</span><button onclick="bulkDeactivateTeam()" style="background:var(--amber-bg);color:#b45309;border:1px solid #f59e0b;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">⏸ Deactivate</button><button onclick="bulkRemoveTeam()" style="background:var(--red-bg,#fef2f2);color:#dc2626;border:1px solid #fca5a5;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑 Remove</button><button onclick="_teamSelectedIds.clear();renderManage()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;margin-left:auto">✕ Clear</button></div>' : ''}
   <div class="vtable-wrap">
     <table class="report-table">
       <thead><tr><th style="width:32px"><input type="checkbox" onchange="selectAllTeam(this.checked)" style="width:15px;height:15px;cursor:pointer"/></th><th>Name</th><th>Market</th><th>Username</th><th>Password</th><th>Role</th><th>Actions</th></tr></thead>
       <tbody>${tableRows||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No users found.</td></tr>'}
     </table>
   </div>
-  '+(totalTeamPages>1?'<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1.5px solid var(--border);margin-top:4px"><button onclick="_teamPage=Math.max(0,_teamPage-1);renderManage()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer">← Prev</button><span style="font-size:13px;color:var(--muted)">Page '+(_teamPage+1)+' of '+totalTeamPages+' · '+searched.length+' users</span><button onclick="_teamPage=Math.min('+(totalTeamPages-1)+',_teamPage+1);renderManage()" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer">Next →</button></div>':'')+`;
-}
+  ${totalTeamPages > 1 ? '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1.5px solid var(--border);margin-top:4px"><button onclick="if(_teamPage>0){_teamPage--;renderManage()}" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer">← Prev</button><span style="font-size:13px;color:var(--muted)">Page '+(_teamPage+1)+' of '+totalTeamPages+' · '+searched.length+' users</span><button onclick="if(_teamPage<'+(totalTeamPages-1)+'){_teamPage++;renderManage()}" style="background:none;border:1.5px solid var(--border);border-radius:8px;padding:6px 16px;font-size:13px;cursor:pointer">Next →</button></div>' : ''}
+  `;}
 
 // ===============================================================
 // ANALYTICS PANEL
