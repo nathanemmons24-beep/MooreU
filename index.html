@@ -263,7 +263,8 @@
   .btn-green-lg{background:var(--green);color:#fff;border:none;border-radius:9px;padding:11px 26px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:.04em;transition:background .2s,transform .15s;margin-top:16px;display:inline-block;}
   .btn-green-lg:hover{background:var(--green-dark);transform:translateY(-1px);}
   .emoji-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;}
-  .emoji-opt{font-size:20px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid transparent;transition:all .15s;}
+  .emoji-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:4px;max-height:180px;overflow-y:auto;padding:4px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;}
+  .emoji-opt{font-size:20px;cursor:pointer;padding:4px 6px;border-radius:6px;border:1.5px solid transparent;transition:all .15s;text-align:center;}
   .emoji-opt:hover{background:var(--green-bg);border-color:var(--green);}
   .emoji-opt.sel{background:var(--green-bg);border-color:var(--green);}
 
