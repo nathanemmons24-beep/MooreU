@@ -1056,27 +1056,23 @@ const SUPA_KEY = 'sb_publishable_M7d5WrV93HfE0UxrdVTIMA_fr3ABRoJ';
 const SUPA_KEY_LEGACY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Znlqc2h6eWVhb29ncWdya3FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0NzQ1MzUsImV4cCI6MjA5MzA1MDUzNX0.eAbZiMNdrobugFhyXsVdvedymj39InhyaePuYJGyMFk';
 
 async function sb(path, opts={}) {
-  // Try with new publishable key first, fall back to legacy key
   const tryFetch = async (key) => {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${path}`,{
+    return await fetch(`${SUPA_URL}/rest/v1/${path}`,{
       method: opts.method||'GET',
       headers:{
         'apikey': key,
         'Authorization': 'Bearer ' + key,
         'Content-Type': 'application/json',
-        'Prefer': opts.prefer||(opts.method==='POST'?'return=representation':''),
+        'Prefer': opts.prefer || (opts.method==='DELETE' ? 'return=minimal' : opts.method==='POST' ? 'return=representation' : ''),
         ...(opts.headers||{})
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined
     });
-    return res;
   };
 
   try {
     let res = await tryFetch(SUPA_KEY);
-    // If new key fails with 401, try legacy key
     if (res.status === 401 || res.status === 403) {
-      console.warn('[SB] New key failed, trying legacy key...');
       res = await tryFetch(SUPA_KEY_LEGACY);
     }
     if(!res.ok){
@@ -1085,7 +1081,7 @@ async function sb(path, opts={}) {
       return null;
     }
     const t = await res.text();
-    return t ? JSON.parse(t) : null;
+    return t ? JSON.parse(t) : true; // return true for successful DELETE with no body
   } catch(e) {
     console.warn('[SB] fetch error:', e.message);
     return null;
@@ -3676,42 +3672,43 @@ function dragDrop(e,targetId){
 }
 
 async function deleteVideo(id){
-  const sid=String(id);
-  if(!confirm('Delete this video permanently?')) return;
-  const v=videos.find(x=>String(x.id)===sid);
+  const sid = String(id);
+  if(!confirm('Delete this video permanently? This cannot be undone.')) return;
+  const v = videos.find(x=>String(x.id)===sid);
   if(!v){ showToast('Video not found'); return; }
 
-  // Check if this is demo/local data (not yet saved to Supabase)
-  const isDemoId = /^[0-9]+$/.test(sid) || sid.startsWith('tmp_');
-
   showToast('Deleting...');
+  console.log('[Delete] Attempting to delete video:', sid, v.title);
 
-  if(!isDemoId) {
-    // Real Supabase video — delete from DB
-    try {
-      await dbDelVideo(v.id);
-      if(v.files && v.files.length) {
-        for(const f of v.files) {
-          if(f._id) await dbDelFile(f._id);
-        }
+  // Try to delete from Supabase
+  let supabaseDeleted = false;
+  try {
+    const result = await DB.del('mhu_videos', `id=eq.${v.id}`);
+    supabaseDeleted = result !== null;
+    console.log('[Delete] Supabase result:', result);
+    // Also delete files
+    if(v.files && v.files.length) {
+      for(const f of v.files) {
+        if(f._id) await DB.del('mhu_files', `id=eq.${f._id}`);
       }
-    } catch(e) {
-      console.warn('Supabase delete error (removing locally anyway):', e);
     }
+  } catch(e) {
+    console.warn('[Delete] Supabase error:', e);
   }
 
   // Always remove from local state
   videos = videos.filter(x=>String(x.id)!==sid);
   selectedIds.delete(sid);
 
-  // Persist the deletion list in localStorage so it survives page refresh
+  // Save deleted ID to localStorage so it stays gone after refresh
   try {
     const deleted = JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]');
     if(!deleted.includes(sid)) deleted.push(sid);
     localStorage.setItem('mhu_deleted_ids', JSON.stringify(deleted));
   } catch(e){}
 
-  showToast('✅ Video deleted');
+  showToast('✅ Video deleted' + (supabaseDeleted ? '' : ' (locally — reconnect to sync)'));
+  console.log('[Delete] Done. Supabase confirmed:', supabaseDeleted);
   renderManage();
 }
 
