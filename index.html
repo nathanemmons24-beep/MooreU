@@ -865,7 +865,7 @@
     <div class="lfield"><label>Username or Email</label><input type="text" id="login-user" placeholder="Enter your username or email"/></div>
     <div class="lfield"><label>Password</label><input type="password" id="login-pass" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <div class="login-hint" id="login-hint-el" style="display:none"></div>
-    <div style="text-align:center;font-size:10px;color:rgba(255,255,255,.3);margin-top:8px">v2026-05-12 17:18:33</div>
+    <div style="text-align:center;font-size:10px;color:rgba(255,255,255,.3);margin-top:8px">v2026-05-18 17:30:32</div>
     <button class="btn-primary" onclick="doLogin()">Sign In →</button>
     <div class="login-error" id="login-error">Incorrect username or password.</div>
     <div style="text-align:center;margin-top:10px">
@@ -1631,22 +1631,21 @@ const COLOR_PALETTES = [
 ];
 const EMOJI_OPTIONS = [
   '📁','🎯','🚀','💡','📚','🏆','⚡','🎓','🔑','📊','🌟','🤝','💼','🔧','📋',
-  '🎬','🎥','📹','🎞️','📽️','🎤','🎧','🎵','🎶','🎸','🥇','🏅','🎖️','🏵️','🎗️',
-  '📱','💻','🖥️','⌨️','🖱️','🖨️','📡','🔭','🔬','⚗️','🧪','🧬','🔋','💾','📀',
-  '🌍','🌎','🌏','🗺️','🏢','🏗️','🏛️','🏪','🏥','🏦','🚗','✈️','🚢','🚂','🛸',
-  '💰','💳','📈','📉','💹','🏦','💎','🪙','💴','💵','📦','🛒','🔖','🏷️','📬',
-  '👥','👤','🙋','🤷','💪','🤝','🫱','🫶','❤️','🧡','💛','💚','💙','💜','🖤',
-  '✅','❌','⚠️','🔴','🟡','🟢','🔵','🟣','⭐','🌙','☀️','🌈','🔥','❄️','💧',
-  '📝','✏️','🖊️','📌','📍','🗂️','🗃️','🗄️','📂','📓','📔','📒','📕','📗','📘',
-  '🧭','⏰','⏱️','📅','📆','🗓️','⏳','🔔','🔕','📢','📣','🔊','🔇','💬','💭',
-  '🎨','🖌️','🖼️','🎭','🎪','🎠','🎡','🎢','🎟️','🎫','🌺','🌸','🌼','🌻','🌹'
+  '🎬','🎥','📹','🎤','🎧','🎵','🎶','🎸','🥇','🏅','🎁','🎀','🎊','🎉','🎈',
+  '📱','💻','🖥','⌨','🖱','📡','🔭','🔬','🧪','🧬','🔋','💾','📀','🖲','🔌',
+  '🌍','🌎','🌏','🏢','🏗','🏛','🏪','🏥','🏦','🚗','✈','🚢','🚂','🛸','🚁',
+  '💰','💳','📈','📉','💹','💎','🪙','📦','🛒','🔖','🏷','📬','💸','🤑','🏧',
+  '👥','👤','🙋','💪','🤝','🫶','❤','🧡','💛','💚','💙','💜','🖤','🤍','🩵',
+  '✅','❌','⚠','🔴','🟡','🟢','🔵','🟣','⭐','🌙','☀','🌈','🔥','❄','💧',
+  '📝','✏','📌','📍','🗂','📂','📓','📔','📒','📕','📗','📘','📙','📃','📄',
+  '🧭','⏰','⏱','📅','📆','🗓','⏳','🔔','🔕','📢','📣','🔊','🔇','💬','💭',
+  '🎨','🖌','🖼','🎭','🎪','🎠','🎡','🎢','🎟','🌺','🌸','🌼','🌻','🌹','🍀'
 ];
 
 function selEmoji(e){
   selectedEmoji = e;
-  // Update all emoji pickers on the page
   document.querySelectorAll('.emoji-opt').forEach(el => {
-    el.classList.toggle('sel', el.textContent === e);
+    el.classList.toggle('sel', el.textContent.trim() === e);
   });
 }
 const FEATURED_IDS = [1, 5, 8];
@@ -3329,7 +3328,6 @@ function openPathDetail(pathId) {
 // ===============================================================
 // MANAGE PAGE - VIDEOS PANEL
 // ===============================================================
-function renderVideosPanel() {
 function renderVideosPanel() {
   const catOpts = Object.keys(cats).filter(c=>!cats[c]?.archived).map(c=>`<option>${c}</option>`).join('');
   const allActive = videos.filter(v => !v.archived);
