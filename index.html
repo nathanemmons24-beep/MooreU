@@ -1524,11 +1524,11 @@ async function toggleUserInactive(username){
 }
 async function saveUserEdit(){
   const u=_dbUsers.find(u=>u.username===editingUserId||u.id===editingUserId);if(!u)return;
-  const nm=document.getElementById('eu-name')?.value.trim();
-  const em=document.getElementById('eu-email')?.value.trim();
-  const pw=document.getElementById('eu-pass')?.value;
-  const ro=document.getElementById('eu-role')?.value;
-  const mk=document.getElementById('eu-market')?.value||u.market||'';
+  const nm=document.getElementById('edit-user-name')?.value.trim();
+  const em=document.getElementById('edit-user-email')?.value.trim();
+  const pw=document.getElementById('edit-user-pass')?.value;
+  const ro=document.getElementById('edit-user-role')?.value;
+  const mk=document.getElementById('edit-user-market')?.value||u.market||'';
   if(!nm){showToast('⚠ Name cannot be empty');return;}
   if(pw&&pw.length<6){showToast('⚠ Password min 6 chars');return;}
   const upd={name:nm,email:em,role:ro,market:mk};
@@ -2219,14 +2219,14 @@ function renderProfilePreferences() {
           <div class="pref-icon" style="background:rgba(107,114,128,.08)">🕐</div>
           <div><div class="pref-text">Recently Viewed</div><div class="pref-sub">${recentIds.length} video${recentIds.length!==1?'s':''} in history</div></div>
         </div>
-        <button onclick="clearRecentlyViewed()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">Clear</button>
+        <button onclick="clearRecentlyViewed()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor=\"var(--border)\";this.style.color='var(--muted)'">Clear</button>
       </div>
       <div class="pref-row">
         <div class="pref-label">
           <div class="pref-icon" style="background:rgba(107,114,128,.08)">🔖</div>
           <div><div class="pref-text">Bookmarks</div><div class="pref-sub">${bookmarkIds.size} saved video${bookmarkIds.size!==1?'s':''}</div></div>
         </div>
-        <button onclick="clearBookmarks()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">Clear</button>
+        <button onclick="clearBookmarks()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor=\"var(--border)\";this.style.color='var(--muted)'">Clear</button>
       </div>
     </div>`;
 }
@@ -3462,20 +3462,22 @@ function renderVideosPanel() {
     <button onclick="selectedIds.clear();renderManage()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px">Clear</button>
   </div>` : '';
 
+  // Build category checkboxes for add-video form
+  const catCheckboxHtml = Object.keys(cats).filter(c=>!cats[c]?.archived).map(c=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer"><input type="checkbox" class="new-cat-cb" value="'+c+'" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/><span style="font-size:13px">'+(cats[c]?.icon||'📁')+' '+c+'</span></label>').join('');
+  const catCheckboxWrap = '<div style="border:1.5px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;padding:6px">'+catCheckboxHtml+'</div>';
   return `
   <div class="acard">
     <div class="acard-title">Add New Resource</div>
     <div class="form-grid">
       <div class="ff"><label>Title</label><input type="text" id="new-title" placeholder="e.g. Q2 Office Hours Recap"/></div>
       <div class="ff">
-        <label>Category</label>
-        <select id="new-cat" onchange="handleCatSelect(this.value)">
-          ${catOptsNew}
-          <option value="__new__">+ Create New Category...</option>
-        </select>
-        <div id="new-cat-inline" style="display:none;margin-top:8px">
-          <input type="text" id="new-cat-name-inline" placeholder="New category name..." style="width:100%;background:var(--bg);border:1.5px solid var(--green);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none"/>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Category will be created when you add the video.</div>
+        <label>Categories <span style="font-weight:400;color:#aaa">(select one or more)</span></label>
+        ${catCheckboxWrap}
+        <div style="margin-top:6px">
+          <button type="button" onclick="toggleNewCatInline()" style="background:none;border:none;color:var(--green);font-size:12px;font-weight:700;cursor:pointer;padding:0">+ Create New Category</button>
+          <div id="new-cat-inline" style="display:none;margin-top:8px">
+            <input type="text" id="new-cat-name-inline" placeholder="New category name..." style="width:100%;background:var(--bg);border:1.5px solid var(--green);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none"/>
+          </div>
         </div>
       </div>
       <div class="ff"><label>Video URL <span style="font-weight:400;color:#aaa">(YouTube, Vimeo, Loom, or .mp4)</span></label>
@@ -3858,7 +3860,7 @@ function openEditModal(id){
         <label>Thumbnail</label>
         ${thumbSrc?`<img src="${thumbSrc}" style="height:80px;border-radius:8px;border:1.5px solid var(--border);display:block;margin-bottom:8px"/>`:''}
         <div class="upload-drop"><input type="file" accept="image/*" onchange="handleEditThumbUpload(event)"/><div class="upload-label">Upload new thumbnail</div></div>
-        <input type="text" id="edit-thumb-url" placeholder="Or paste image URL" style="width:100%;margin-top:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;color:var(--text);outline:none" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"/>
+        <input type="text" id="edit-thumb-url" placeholder="Or paste image URL" style="width:100%;margin-top:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;color:var(--text);outline:none" onfocus="this.style.borderColor=\"var(--green)\"" onblur="this.style.borderColor=\"var(--border)\""/>
       </div>
       <div class="ff full">
         <label>Attachments</label>
@@ -3986,7 +3988,16 @@ function addVideo(){
   if(_addingVideo){ showToast('Already saving, please wait...'); return; }
 
   const title=document.getElementById('new-title')?.value.trim();
-  let cat=document.getElementById('new-cat')?.value;
+  // Read selected categories from checkboxes
+  let selectedCats = [...document.querySelectorAll('.new-cat-cb:checked')].map(cb=>cb.value);
+  const newCatName = document.getElementById('new-cat-name-inline')?.value.trim();
+  if(newCatName && !cats[newCatName]) {
+    const idx2=Object.keys(cats).length%6;
+    const colors2=['#4a7c3f','#1a5276','#7c3aed','#c0392b','#b45309','#2c5f1a'];
+    cats[newCatName]={icon:'📁',color:colors2[idx2],bg:colors2[idx2]+'22',gradient:'#1a1a1a,#2a2a2a'};
+    selectedCats.push(newCatName);
+  }
+  let cat = selectedCats.length === 1 ? selectedCats[0] : (selectedCats.length > 1 ? selectedCats : null);
   const dur=document.getElementById('new-dur')?.value.trim()||'0:00';
   const url=document.getElementById('new-url')?.value.trim()||'';
   const desc=document.getElementById('new-desc')?.value.trim()||'';
@@ -3996,18 +4007,7 @@ function addVideo(){
 
   // Validate BEFORE setting the lock
   if(!title){ showToast('Enter a video title'); return; }
-  if(cat==='__new__'){
-    const newCatName=document.getElementById('new-cat-name-inline')?.value.trim();
-    if(!newCatName){ showToast('Enter a name for the new category'); return; }
-    if(!cats[newCatName]){
-      const idx=Object.keys(cats).length%6;
-      const colors=['#4a7c3f','#1a5276','#7c3aed','#c0392b','#b45309','#2c5f1a'];
-      cats[newCatName]={icon:selectedEmoji||'📁',color:colors[idx],bg:colors[idx]+'22',gradient:'#1a1a1a,#2a2a2a'};
-      showToast(`Category "${newCatName}" created!`);
-    }
-    cat=newCatName;
-  }
-  if(!cat||!cats[cat]){ showToast('Select or create a category'); return; }
+  if(!cat){ showToast('Select at least one category'); return; }
 
   // All validation passed — now lock
   _addingVideo = true;
@@ -4420,6 +4420,7 @@ function renderReportsPanel(){
         <div style="font-size:11px;color:var(--muted);margin-top:3px">${watched.length}/${reqVids.length} (${pct}%)</div>
       </td>
       <td>
+        <button class="edit-btn" onclick="openAssignModal('${uid}')" style="background:var(--green-bg);color:var(--green);border-color:var(--green)">📋 Assign</button>
         <button class="edit-btn" onclick="openUserReport('${uid}')" title="Full report">Report</button>
         ${canCert?`<button class="edit-btn" onclick="downloadCertificate('${uid}')" style="margin-left:4px">Cert</button>`:''}
       </td>
@@ -4428,8 +4429,11 @@ function renderReportsPanel(){
 
   return `
   <div class="acard">
-    <div class="acard-title">Team Completion</div>
-    <div class="acard-sub">Required training progress for all team members.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div><div class="acard-title" style="margin:0">Team Completion</div>
+      <div class="acard-sub" style="margin:0">Required training progress. Click Assign to assign to individual users.</div></div>
+      <button onclick="openBulkAssignModal()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0">👥 Bulk Assign</button>
+    </div>
     <div class="vtable-wrap">
       <table class="report-table">
         <thead><tr><th>Name</th><th>Market</th><th>Progress</th><th>Actions</th></tr></thead>
@@ -4491,53 +4495,62 @@ function getPaths(){try{return JSON.parse(localStorage.getItem('mhu_paths')||'[]
 function savePaths(paths){localStorage.setItem('mhu_paths',JSON.stringify(paths));}
 
 function renderPathsPanel(){
-  const paths=getPaths();
-  const allVids=videos.filter(v=>!isExpired(v)&&!v.archived);
-  const pathCards=paths.length?paths.map((p,pi)=>{
-    const vids=p.videoIds.map(id=>allVids.find(v=>String(v.id)===String(id))).filter(Boolean);
-    return `<div class="acard" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="font-size:22px">${p.icon||'X'}</div>
-        <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800">${p.name}</div>
-          <div style="font-size:12px;color:var(--muted)">${vids.length} video${vids.length!==1?'s':''} · ${p.desc||'No description'}</div></div>
-        <button class="del-btn" onclick="deletePath(${pi})">Delete</button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${vids.map((v,vi)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px">
-          <span style="font-size:12px;font-weight:700;color:var(--muted);width:20px;text-align:center">${vi+1}</span>
-          <div style="flex:1;font-size:13px;font-weight:600">${v.title}</div>
-          <span style="font-size:11px;color:var(--muted)">${v.duration}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join(''):`<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No training paths yet.</div>`;
-
-  const videoCheckboxes=allVids.map(v=>`
-    <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
-      <input type="checkbox" class="path-vid-cb" value="${v.id}" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/>
-      <span style="font-size:13px;flex:1">${v.title}</span>
-      <span style="font-size:11px;color:var(--muted)">${v.category}</span>
-    </label>`).join('');
-
-  return `
-  <div class="acard">
-    <div class="acard-title">Training Paths (${paths.length})</div>
-    ${pathCards}
-  </div>
-  <div class="acard">
-    <div class="acard-title">Create New Path</div>
-    <div class="form-grid">
-      <div class="ff"><label>Path Name</label><input type="text" id="path-name" placeholder="e.g. New Hire Onboarding"/></div>
-      <div class="ff"><label>Icon (emoji)</label><input type="text" id="path-icon" placeholder="X" maxlength="2" style="font-size:20px"/></div>
-      <div class="ff full"><label>Description</label><input type="text" id="path-desc" placeholder="Short description..."/></div>
-      <div class="ff full">
-        <label>Select Videos (in order)</label>
-        <div style="border:1.5px solid var(--border);border-radius:10px;max-height:260px;overflow-y:auto;padding:4px">${videoCheckboxes}</div>
-      </div>
-    </div>
-    <button class="btn-green-lg" onclick="addPath()">Create Path</button>
-  </div>`;
+  const paths = getPaths();
+  const allVids = videos.filter(v=>!isExpired(v)&&!v.archived);
+  const users = allUsers().filter(u=>!u.inactive);
+  const catList = [...new Set(allVids.map(v=>vidPrimaryCategory(v)))].filter(Boolean).sort();
+  const catOpts4 = catList.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+  function mkFolderCard(p, pi) {
+    const vids=(p.videoIds||[]).map(id=>allVids.find(v=>String(v.id)===String(id))).filter(Boolean);
+    const assignees=(p.assignedTo||[]).map(uid=>users.find(u=>u.id===uid||u.username===uid)).filter(Boolean);
+    const pid=p.id;
+    return '<div onclick="openPathFolder(\''+pid+'\')"' 
+      +' style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--white);border:1.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .2s;margin-bottom:10px"'
+      +' onmouseover="this.style.borderColor=\'var(--green)\';this.style.background=\'var(--green-bg)\'"' 
+      +' onmouseleave="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--white)\'">'
+      +'<div style="font-size:28px">📁</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-family:Syne,sans-serif;font-size:14px;font-weight:800">'+p.name+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+vids.length+' video'+(vids.length!==1?'s':'')
+        +(p.desc?' · '+p.desc:'')+(assignees.length?' · 👥 '+assignees.length+' assigned':'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px" onclick="event.stopPropagation()">'
+      +'<button onclick="openAssignPathModal(\''+pid+'\')" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green);border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">👥 Assign</button>'
+      +'<button onclick="deletePath('+pi+')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer">🗑</button>'
+      +'</div></div>';
+  }
+  const folderCards = paths.length ? paths.map((p,pi)=>mkFolderCard(p,pi)).join('') : '<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No training paths yet.</div>';
+  const videoList = allVids.map(v=>
+    '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer">'
+    +'<input type="checkbox" class="path-vid-cb" value="'+v.id+'" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/>'
+    +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+vidPrimaryCategory(v)+'</span>'
+    +'</label>'
+  ).join('');
+  return '<div class="acard" style="margin-bottom:16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<div class="acard-title" style="margin:0">Training Paths ('+paths.length+')</div>'
+    +'</div>'
+    +folderCards
+    +'</div>'
+    +'<div class="acard">'
+    +'<div class="acard-title">Create New Path</div>'
+    +'<div class="form-grid">'
+    +'<div class="ff"><label>Path Name</label><input type="text" id="path-name" placeholder="e.g. New Hire Onboarding"/></div>'
+    +'<div class="ff"><label>Description (optional)</label><input type="text" id="path-desc" placeholder="Short description"/></div>'
+    +'<div class="ff full">'
+    +'<label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<span>Select Videos</span>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<input type="text" id="path-vid-search" placeholder="🔍 Search..." oninput="filterPathVids(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg);color:var(--text);outline:none;width:160px"/>'
+    +'<select id="path-cat-filter" onchange="filterPathVids(document.getElementById(\'path-vid-search\').value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg);color:var(--text);outline:none"><option value="">All Categories</option>'+catOpts4+'</select>'
+    +'</div></label>'
+    +'<div id="path-vid-list" style="border:1.5px solid var(--border);border-radius:10px;max-height:240px;overflow-y:auto;padding:6px">'+videoList+'</div>'
+    +'</div></div>'
+    +'<button class="btn-green-lg" onclick="addPath()">📁 Create Path</button>'
+    +'</div>';
 }
+
 
 function addPath(){
   const name=document.getElementById('path-name')?.value.trim();
@@ -4551,6 +4564,326 @@ function addPath(){
   paths.push({id:'path_'+Date.now(),name,icon,desc,videoIds});
   savePaths(paths);showToast(`Path "${name}" created!`);renderManage();
 }
+
+function filterPathVids(q) {
+  const catF = document.getElementById('path-cat-filter')?.value||'';
+  const sq = (q||'').toLowerCase();
+  document.querySelectorAll('#path-vid-list label').forEach(label => {
+    const title = label.querySelector('span')?.textContent?.toLowerCase()||'';
+    const cat = label.querySelectorAll('span')[1]?.textContent||'';
+    const show = (!sq||title.includes(sq))&&(!catF||cat===catF);
+    label.style.display = show ? '' : 'none';
+  });
+}
+
+function openPathFolder(pathId) {
+  const paths = getPaths();
+  const p = paths.find(x=>x.id===pathId);
+  if(!p) return;
+  const allVids = videos.filter(v=>!isExpired(v)&&!v.archived);
+  const vids = (p.videoIds||[]).map(id=>allVids.find(v=>String(v.id)===String(id))).filter(Boolean);
+  const users = allUsers().filter(u=>!u.inactive);
+  const assignees = (p.assignedTo||[]).map(uid=>users.find(u=>u.id===uid||u.username===uid)).filter(Boolean);
+
+  const vidRows = vids.map((v,i) =>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:var(--bg);margin-bottom:8px;cursor:pointer" onclick="openModal(\"+v.id+\")">'
+    +'<div style="width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">'+(i+1)+'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+v.title+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">'+vidPrimaryCategory(v)+(v.duration?' · '+v.duration:'')+'</div></div>'
+    +'<div style="font-size:11px;color:var(--green);font-weight:700">▶ Watch</div></div>'
+  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">No videos in this path.</div>';
+
+  const assigneeList = assignees.length
+    ? assignees.map(u=>'<span style="background:var(--green-bg);color:var(--green);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">'+u.name+'</span>').join(' ')
+    : '<span style="color:var(--muted);font-size:12px">Not assigned to anyone yet</span>';
+
+  const ex = document.getElementById('path-folder-overlay');
+  if(ex) ex.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'path-folder-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:560px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:20px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:12px">'
+    +'<div style="font-size:28px">📁</div>'
+    +'<div style="flex:1"><div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">'+p.name+'</div>'
+    +'<div style="font-size:12px;color:var(--muted)">'+vids.length+' videos</div></div>'
+    +'<button onclick="document.getElementById(\"path-folder-overlay\").remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">×</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Videos</div>'
+    +vidRows
+    +'<div style="margin-top:16px;padding-top:16px;border-top:1.5px solid var(--border)">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Assigned To</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+assigneeList+'</div></div></div>'
+    +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
+    +'<button onclick="openAssignPathModal(\"+p.id+\");document.getElementById(\"path-folder-overlay\").remove()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-family:Syne,sans-serif;font-weight:700;font-size:13px;cursor:pointer">👥 Assign to Users</button>'
+    +'<button onclick="document.getElementById(\"path-folder-overlay\").remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 16px;cursor:pointer;font-size:13px">Close</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function openAssignPathModal(pathId) {
+  const paths = getPaths();
+  const p = paths.find(x=>x.id===pathId);
+  if(!p) return;
+  const users = allUsers().filter(u=>!u.inactive&&u.role!=='admin');
+  const assigned = new Set(p.assignedTo||[]);
+  const userRows = users.map(u => {
+    const uid = u.id||u.username;
+    return '<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\"var(--green-bg)\"" onmouseleave="this.style.background=\"\"">'
+      +'<input type="checkbox" class="assign-user-cb" value="'+uid+'" '+(assigned.has(uid)?'checked':'')+' style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+u.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+(u.market||'')+(u.role?' · '+u.role:'')+'</div></div>'
+      +'</label>';
+  }).join('');
+  const ex = document.getElementById('assign-path-overlay');
+  if(ex) ex.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'assign-path-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:440px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:18px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<div style="font-family:Syne,sans-serif;font-size:15px;font-weight:800">Assign: '+p.name+'</div>'
+    +'<button onclick="document.getElementById(\"assign-path-overlay\").remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
+    +'</div>'
+    +'<div style="padding:12px 16px;border-bottom:1.5px solid var(--border)">'
+    +'<input type="text" placeholder="🔍 Filter users..." oninput="this.nextElementSibling.querySelectorAll(\"label\").forEach(l=>{l.style.display=l.textContent.toLowerCase().includes(this.value.toLowerCase())?\"\":\"none\"})" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<div style="max-height:280px;overflow-y:auto;margin-top:8px">'+userRows+'</div>'
+    +'</div>'
+    +'<div style="padding:16px 24px;display:flex;gap:8px">'
+    +'<button onclick="savePathAssignment(\""+pathId+"\")" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-family:Syne,sans-serif;font-weight:700;font-size:13px;cursor:pointer;flex:1">Save Assignment</button>'
+    +'<button onclick="document.getElementById(\"assign-path-overlay\").remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 14px;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function savePathAssignment(pathId) {
+  const paths = getPaths();
+  const p = paths.find(x=>x.id===pathId);
+  if(!p) return;
+  const checked = [...document.querySelectorAll('.assign-user-cb:checked')].map(cb=>cb.value);
+  p.assignedTo = checked;
+  savePaths(paths);
+  document.getElementById('assign-path-overlay')?.remove();
+  showToast('✅ Assigned to '+checked.length+' user'+(checked.length!==1?'s':''));
+  renderManage();
+}
+
+function filterAssignVids() {
+  const q = (document.getElementById('assign-vid-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('assign-cat-filter')?.value||'';
+  document.querySelectorAll('#assign-vid-list .assign-vid-label').forEach(el => {
+    const t = el.dataset.title||'';
+    const c = el.dataset.cat||'';
+    el.style.display = ((!q||t.includes(q))&&(!cat||c===cat)) ? '' : 'none';
+  });
+}
+
+async function removeAssignment(assignId, userId) {
+  if(!confirm('Remove this assignment?')) return;
+  if(assignId) {
+    await DB.del('mhu_assignments','id=eq.'+assignId);
+    _cachedAssignments = _cachedAssignments.filter(a=>(a.id||a._id)!==assignId);
+  }
+  showToast('Assignment removed');
+  document.getElementById('assign-modal')?.remove();
+  openAssignModal(userId);
+}
+
+function openBulkAssignModal() {
+  const markets = [...new Set(allUsers().filter(u=>!u.inactive&&u.role!=='admin').map(u=>u.market||'').filter(Boolean))].sort();
+  const allVids = videos.filter(v=>!v.archived&&!isExpired(v));
+  const paths = getPaths();
+  const cats_list = [...new Set(allVids.map(v=>vidPrimaryCategory(v)))].filter(Boolean).sort();
+  const ex = document.getElementById('bulk-assign-modal');
+  if(ex) ex.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'bulk-assign-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  // Build parts
+  const marketBtns = markets.map(m=>'<button onclick="toggleBulkMarket(\''+m+'\');" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">'+m+'</button>').join('');
+  const userRows = allUsers().filter(u=>!u.inactive&&u.role!=='admin').map(u=>{
+    const uid=u.id||u.username;
+    return '<label data-market="'+(u.market||'')+'" data-role="'+(u.role||'')+'" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer">'
+      +'<input type="checkbox" class="bulk-user-cb" value="'+uid+'" style="accent-color:var(--green);cursor:pointer"/>'
+      +'<span style="font-size:13px;flex:1">'+u.name+'</span>'
+      +'<span style="font-size:11px;color:var(--muted)">'+(u.market||'')+' · '+(u.role||'')+'</span>'
+      +'</label>';
+  }).join('');
+  const catOpts = cats_list.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+  const vidRows = allVids.map(v=>'<label class="bulk-assign-vid-label" data-cat="'+vidPrimaryCategory(v)+'" data-title="'+v.title.toLowerCase()+'" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer">'
+    +'<input type="checkbox" class="bulk-assign-vid-cb" value="'+v.id+'" style="accent-color:var(--green);cursor:pointer"/>'
+    +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+vidPrimaryCategory(v)+'</span>'
+    +'</label>').join('');
+  const pathRows = paths.map(p=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer">'
+    +'<input type="checkbox" class="bulk-assign-path-cb" value="'+p.id+'" style="accent-color:var(--green);cursor:pointer"/>'
+    +'<div style="flex:1"><div style="font-size:13px;font-weight:600">📁 '+p.name+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">'+(p.videoIds||[]).length+' videos</div></div>'
+    +'</label>').join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">No paths yet.</div>';
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:var(--white);border-radius:16px;width:100%;max-width:620px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4)';
+  wrap.innerHTML = '<div style="padding:18px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">Bulk Assign Training</div>'
+    +'<button onclick="document.getElementById(\'bulk-assign-modal\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Select Users</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+    +'<button onclick="toggleBulkAll()" style="background:var(--green-bg);color:var(--green);border:1.5px solid var(--green);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">All Users</button>'
+    +marketBtns
+    +'</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;padding:6px;margin-bottom:14px">'+userRows+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Videos</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<input type="text" placeholder="🔍 Search videos..." oninput="document.querySelectorAll(\'.bulk-assign-vid-label\').forEach(l=>l.style.display=l.dataset.title.includes(this.value.toLowerCase())?\'\':\'none\')" style="flex:1;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<select onchange="const v2=this.value;document.querySelectorAll(\'.bulk-assign-vid-label\').forEach(l=>l.style.display=(!v2||l.dataset.cat===v2)?\'\':\'none\')" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"><option value="">All</option>'+catOpts+'</select>'
+    +'</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:160px;overflow-y:auto;padding:6px;margin-bottom:14px">'+vidRows+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Paths</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:120px;overflow-y:auto;padding:6px;margin-bottom:14px">'+pathRows+'</div>'
+    +'<div><label style="font-size:13px;font-weight:600">Due Date (optional)</label>'
+    +'<input type="date" id="bulk-assign-due" style="margin-top:6px;width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/></div>'
+    +'</div>'
+    +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
+    +'<button onclick="saveBulkAssignments()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:Syne,sans-serif;font-weight:700;font-size:14px;cursor:pointer;flex:1">Assign to Selected Users</button>'
+    +'<button onclick="document.getElementById(\'bulk-assign-modal\').remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 16px;cursor:pointer">Cancel</button>'
+    +'</div>';
+  overlay.appendChild(wrap);
+  document.body.appendChild(overlay);
+}
+
+function toggleBulkAll(){const cbs=document.querySelectorAll('.bulk-user-cb');const allChecked=[...cbs].every(cb=>cb.checked);cbs.forEach(cb=>cb.checked=!allChecked);}
+function toggleBulkMarket(market){document.querySelectorAll('.bulk-user-cb').forEach(cb=>{const l=cb.closest('label');if(l?.dataset.market===market)cb.checked=!cb.checked;});}
+function toggleBulkRole(role){document.querySelectorAll('.bulk-user-cb').forEach(cb=>{const l=cb.closest('label');if(l?.dataset.role===role)cb.checked=!cb.checked;});}
+
+async function saveBulkAssignments() {
+  const userIds=[...document.querySelectorAll('.bulk-user-cb:checked')].map(cb=>cb.value);
+  const vidIds=[...document.querySelectorAll('.bulk-assign-vid-cb:checked')].map(cb=>cb.value);
+  const pathIds=[...document.querySelectorAll('.bulk-assign-path-cb:checked')].map(cb=>cb.value);
+  const due=document.getElementById('bulk-assign-due')?.value||'';
+  if(!userIds.length){showToast('Select at least one user');return;}
+  if(!vidIds.length&&!pathIds.length){showToast('Select at least one video or path');return;}
+  let count=0;
+  for(const uid of userIds){
+    for(const vid of vidIds){
+      const already=_cachedAssignments.some(a=>String(a.userId)===String(uid)&&String(a.videoId)===String(vid));
+      if(!already){await DB.post('mhu_assignments',{user_id:uid,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:''});count++;}
+    }
+    for(const pid of pathIds){
+      const p=getPaths().find(x=>x.id===pid);if(!p)continue;
+      for(const vid of (p.videoIds||[])){
+        const already=_cachedAssignments.some(a=>String(a.userId)===String(uid)&&String(a.videoId)===String(vid));
+        if(!already){await DB.post('mhu_assignments',{user_id:uid,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:'Path: '+p.name});count++;}
+      }
+    }
+  }
+  document.getElementById('bulk-assign-modal')?.remove();
+  showToast('✅ Assigned '+count+' item'+(count!==1?'s':'')+' to '+userIds.length+' user'+(userIds.length!==1?'s':''));
+  renderManage();
+}
+
+function openAssignModal(userId) {
+  const u = allUsers().find(x=>(x.id||x.username)===userId);
+  if(!u) return;
+  const allVids = videos.filter(v=>!v.archived&&!isExpired(v));
+  const paths = getPaths();
+  const cats_list = [...new Set(allVids.map(v=>vidPrimaryCategory(v)))].filter(Boolean).sort();
+  const existing = _cachedAssignments.filter(a=>String(a.userId)===String(userId));
+  const existingVidIds = new Set(existing.map(a=>String(a.videoId)));
+  const watched = new Set(_cachedAnalytics.filter(e=>(e.type==='view'||e.type==='watch_time')&&String(e.userId)===String(userId)).map(e=>String(e.videoId)));
+  const recommended = allVids.filter(v=>v.required&&!watched.has(String(v.id))).slice(0,5);
+  const recSection = recommended.length
+    ? '<div style="margin-bottom:14px;padding:12px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">⭐ Recommended — Required videos not yet watched</div>'
+      +recommended.map(v=>'<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">'
+        +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
+        +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+        +'<span style="font-size:11px;color:var(--green);font-weight:600">Required</span></label>').join('')
+      +'</div>' : '';
+  const currentSection = existing.length
+    ? '<div style="margin-bottom:14px;padding:12px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Current Assignments</div>'
+      +existing.map(a=>{const v=videos.find(x=>String(x.id)===String(a.videoId));
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'
+          +'<span style="font-size:13px;flex:1">'+(v?v.title:'Unknown')+'</span>'
+          +(a.due?'<span style="font-size:11px;color:var(--muted)">Due: '+a.due+'</span>':'')
+          +'<button onclick="removeAssignment(\"'+(a.id||a._id||'')+'\",\"'+userId+'\")" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;padding:0 4px" title="Remove">✕</button>'
+          +'</div>';}).join('')
+      +'</div>' : '';
+  const catOpts = cats_list.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+  const vidList = allVids.map(v=>
+    '<label class="assign-vid-label" data-cat="'+vidPrimaryCategory(v)+'" data-title="'+v.title.toLowerCase()+'" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\"var(--bg)\"" onmouseleave="this.style.background=\"\"">'
+    +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
+    +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+vidPrimaryCategory(v)+'</span></label>'
+  ).join('');
+  const pathList = paths.map(p=>
+    '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\"var(--bg)\"" onmouseleave="this.style.background=\"\"">'
+    +'<input type="checkbox" class="assign-path-cb" value="'+p.id+'" style="accent-color:var(--green);cursor:pointer"/>'
+    +'<div style="flex:1"><div style="font-size:13px;font-weight:600">📁 '+p.name+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">'+(p.videoIds||[]).length+' videos'+(p.desc?' · '+p.desc:'')+'</div></div></label>'
+  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">No training paths yet.</div>';
+  const ex2 = document.getElementById('assign-modal');
+  if(ex2) ex2.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'assign-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:580px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:18px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:12px">'
+    +'<div style="flex:1"><div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">Assign Training</div>'
+    +'<div style="font-size:12px;color:var(--muted)">'+u.name+' · '+(u.market||'')+'</div></div>'
+    +'<button onclick="document.getElementById(\"assign-modal\").remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +currentSection+recSection
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Add Videos</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<input type="text" id="assign-vid-search" placeholder="🔍 Search..." oninput="filterAssignVids()" style="flex:1;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<select id="assign-cat-filter" onchange="filterAssignVids()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"><option value="">All</option>'+catOpts+'</select>'
+    +'</div>'
+    +'<div id="assign-vid-list" style="border:1.5px solid var(--border);border-radius:10px;max-height:180px;overflow-y:auto;padding:6px;margin-bottom:14px">'+vidList+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Add Paths</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:140px;overflow-y:auto;padding:6px;margin-bottom:14px">'+pathList+'</div>'
+    +'<div><label style="font-size:13px;font-weight:600">Due Date (optional)</label>'
+    +'<input type="date" id="assign-due" style="margin-top:6px;width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/></div>'
+    +'</div>'
+    +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
+    +'<button onclick="saveAssignments(\""+userId+"\")" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:Syne,sans-serif;font-weight:700;font-size:14px;cursor:pointer;flex:1">Save Assignments</button>'
+    +'<button onclick="document.getElementById(\"assign-modal\").remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 16px;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+async function saveAssignments(userId) {
+  const vidIds=[...document.querySelectorAll('.assign-vid-cb:checked')].map(cb=>cb.value);
+  const pathIds=[...document.querySelectorAll('.assign-path-cb:checked')].map(cb=>cb.value);
+  const due=document.getElementById('assign-due')?.value||'';
+  let count=0;
+  for(const vid of vidIds){
+    const already=_cachedAssignments.some(a=>String(a.userId)===String(userId)&&String(a.videoId)===String(vid));
+    if(!already){await DB.post('mhu_assignments',{user_id:userId,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:''});count++;}
+  }
+  for(const pid of pathIds){
+    const p=getPaths().find(x=>x.id===pid);if(!p)continue;
+    for(const vid of (p.videoIds||[])){
+      const already=_cachedAssignments.some(a=>String(a.userId)===String(userId)&&String(a.videoId)===String(vid));
+      if(!already){await DB.post('mhu_assignments',{user_id:userId,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:'Path: '+p.name});count++;}
+    }
+  }
+  document.getElementById('assign-modal')?.remove();
+  showToast('✅ Assigned '+count+' item'+(count!==1?'s':'')+' to '+allUsers().find(u=>(u.id||u.username)===userId)?.name);
+  renderManage();
+}
+
+function toggleNewCatInline() {
+  const el = document.getElementById('new-cat-inline');
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+
 function deletePath(idx){
   if(!confirm('Delete this path?'))return;
   const paths=getPaths();paths.splice(idx,1);savePaths(paths);renderManage();
@@ -4710,7 +5043,7 @@ let assignVideoId=null;
 function openAssignModal(id){
   assignVideoId=String(id);const v=videos.find(x=>String(x.id)===String(id));if(!v)return;
   const users=allUsers().filter(u=>u.role!=='admin'&&!u.inactive);
-  const userChecks=users.map(u=>`<label style="display:flex;align-items:center;gap:8px;padding:7px;border-radius:7px;cursor:pointer" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
+  const userChecks=users.map(u=>`<label style="display:flex;align-items:center;gap:8px;padding:7px;border-radius:7px;cursor:pointer" onmouseover="this.style.background=\"var(--bg)\"" onmouseout="this.style.background=\"\"">
     <input type="checkbox" class="assign-user-cb" value="${u.id||u.username}" style="width:14px;height:14px;accent-color:var(--green)"/>
     <span style="font-size:13px;flex:1">${u.name}</span>
     <span style="font-size:11px;color:var(--muted)">${u.market||u.role}</span>
