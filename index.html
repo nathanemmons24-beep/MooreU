@@ -3061,6 +3061,31 @@ function renderHero() {
 }
 
 
+function setHighlight(i) {
+  const role = effectiveRole();
+  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0,15);
+  activeHighlight = Math.max(0, Math.min(i, fv.length-1));
+  const pri = fv[activeHighlight];
+  if (!pri) return;
+  const titleEl = document.querySelector('.hero-title');
+  const btnEl   = document.querySelector('.hero-watch-btn');
+  if(titleEl) titleEl.textContent = pri.title;
+  if(btnEl)   btnEl.onclick = function(){ openModal(pri.id); };
+  document.querySelectorAll('.hdot').forEach((d,di) => d.classList.toggle('active', di===activeHighlight));
+}
+
+function startHeroAutoAdvance() {
+  const role = effectiveRole();
+  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0,15);
+  if(fv.length < 2) return;
+  if(window._heroTimer) clearTimeout(window._heroTimer);
+  window._heroTimer = setTimeout(() => {
+    activeHighlight = (activeHighlight + 1) % fv.length;
+    setHighlight(activeHighlight);
+    startHeroAutoAdvance();
+  }, 5000);
+}
+
 function renderHome() {
   renderSidebar();
   const role = effectiveRole();
