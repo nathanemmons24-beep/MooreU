@@ -878,7 +878,8 @@
   .hero-mosaic-card:hover .hero-card-play{transform:translate(-50%,-50%) scale(1);opacity:1;}
   .hero-card-play-tri{width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:15px solid #fff;margin-left:3px;}
   .hero-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-  .hero-featured-title{font-family:"Syne",sans-serif;font-size:72px;font-weight:900;letter-spacing:-.02em;text-transform:uppercase;text-align:center;color:#00A651;text-shadow:0 0 40px rgba(0,166,81,.5),0 0 80px rgba(0,166,81,.2);transition:opacity .4s ease;pointer-events:none;user-select:none;line-height:1;}
+  @keyframes heroTitleGlow{0%,100%{text-shadow:0 0 40px rgba(0,166,81,.6),0 0 80px rgba(0,166,81,.3),0 0 20px rgba(255,255,255,.8),0 0 60px rgba(255,255,255,.3)}50%{text-shadow:0 0 60px rgba(0,166,81,.9),0 0 120px rgba(0,166,81,.5),0 0 30px rgba(255,255,255,1),0 0 100px rgba(255,255,255,.5)}}
+  .hero-featured-title{font-family:"Syne",sans-serif;font-size:72px;font-weight:900;letter-spacing:-.02em;text-transform:uppercase;text-align:center;color:#00A651;animation:heroTitleGlow 2.5s ease-in-out infinite;transition:opacity .4s ease;pointer-events:none;user-select:none;line-height:1;}
   .hero-featured-title.faded{opacity:0;}
   /* Login mosaic */
   .login-mosaic-track{position:absolute;inset:0;display:flex;gap:12px;padding:12px;animation:heroMosaicSlide 45s linear infinite;pointer-events:none;user-select:none;opacity:.5;filter:blur(1px);}
