@@ -878,7 +878,7 @@
   .hero-mosaic-card:hover .hero-card-play{transform:translate(-50%,-50%) scale(1);opacity:1;}
   .hero-card-play-tri{width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:15px solid #fff;margin-left:3px;}
   .hero-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-  .hero-featured-title{font-family:"Syne",sans-serif;font-size:72px;font-weight:900;letter-spacing:-.02em;text-transform:uppercase;text-align:center;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.85);background:linear-gradient(135deg,#fff 0%,rgba(255,255,255,.7) 50%,#fff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 30px rgba(255,255,255,.25));transition:opacity .4s ease;pointer-events:none;user-select:none;line-height:1;}
+  .hero-featured-title{font-family:"Syne",sans-serif;font-size:72px;font-weight:900;letter-spacing:-.02em;text-transform:uppercase;text-align:center;color:transparent;-webkit-text-stroke:2px rgba(0,166,81,.9);background:linear-gradient(135deg,#00A651 0%,#00d468 40%,#00A651 70%,#007a3d 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 40px rgba(0,166,81,.5)) drop-shadow(0 0 80px rgba(0,166,81,.2));transition:opacity .4s ease;pointer-events:none;user-select:none;line-height:1;}
   .hero-featured-title.faded{opacity:0;}
   /* Login mosaic */
   .login-mosaic-track{position:absolute;inset:0;display:flex;gap:12px;padding:12px;animation:heroMosaicSlide 45s linear infinite;pointer-events:none;user-select:none;opacity:.5;filter:blur(1px);}
@@ -898,8 +898,8 @@
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo-wrap">
-      <div class="login-crest">🎓</div>
-      <div class="login-logo">Moore Holdings<br><span class="g">University</span></div>
+      <div class="login-crest"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="52" height="52" style="display:block"><rect width="52" height="52" rx="10" fill="#00A651"/><text x="26" y="36" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="22" fill="#fff">RbA</text></svg></div>
+      <div class="login-logo"><span style="color:#00A651;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:2px">Renewal by Andersen</span>Moore Holdings<br><span class="g">University</span></div>
     </div>
     <div class="login-sub" id="login-sub-text">Employee Training &amp; Development Portal</div>
     <div class="lfield"><label>Username or Email</label><input type="text" id="login-user" placeholder="Enter your username or email"/></div>
@@ -918,7 +918,10 @@
 <div id="app">
   <div class="topbar">
     <button class="mob-only" id="mob-menu-btn" onclick="toggleMobSidebar()">☰</button>
-    <div class="topbar-logo" id="topbar-logo-el">Moore Holdings <span class="g">University</span></div>
+    <div class="topbar-logo" id="topbar-logo-el" style="display:flex;align-items:center;gap:10px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="32" height="32" style="flex-shrink:0;border-radius:7px"><rect width="36" height="36" rx="7" fill="#00A651"/><text x="18" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="15" fill="#fff">RbA</text></svg>
+      <div><div style="font-size:11px;font-weight:700;color:#00A651;letter-spacing:.07em;text-transform:uppercase;line-height:1">Renewal by Andersen</div><div>Moore Holdings <span class="g">University</span></div></div>
+    </div>
     <div class="topbar-div"></div>
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
