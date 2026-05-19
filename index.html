@@ -8,6 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Moore Holdings University</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
@@ -1208,100 +1210,129 @@ async function syncFromDB(){
   showSyncStatus('Connecting to cloud…');
   try{
     // Settings
+    // ── Parallel fetch of all global data ──────────────────────────
+    showSyncStatus('Loading...');
+    const _fetches = await Promise.allSettled([
+      dbGetSettings(),
+      dbGetCategories(),
+      dbGetVideos(),
+      dbGetFiles(),
+      dbGetUsers(),
+      dbGetAnalytics(90),
+      dbGetVis(),
+      DB.get('mhu_ratings','')
+    ]);
+    const _settled = r => (r.status==='fulfilled' ? r.value : null) || [];
+
+    // Settings
     try {
-      const sRows=await dbGetSettings()||[];
-      const s=Object.fromEntries(sRows.map(r=>[r.key,r.value]));
-      if(Object.keys(s).length){applySettings({siteName:s.site_name,siteSubtitle:s.site_subtitle,accentColor:s.accent_color,loginHint:s.login_hint,logoData:s.logo_data});}
-    } catch(e){ console.warn('Settings load failed',e); }
+      const sData = _settled(_fetches[0]);
+      const s = Object.fromEntries(sData.map(r=>[r.key,r.value]));
+      if(Object.keys(s).length) applySettings({siteName:s.site_name,siteSubtitle:s.site_subtitle,logoUrl:s.logo_url,accentColor:s.accent_color,darkMode:s.dark_mode==='true',showHero:s.show_hero!=='false',requireLogin:s.require_login==='true'});
+    } catch(e){}
 
     // Categories
     try {
-      const cRows=await dbGetCategories()||[];
-      cats={};
-      cRows.forEach(c=>{cats[c.name]={icon:c.icon,color:c.color,bg:c.bg,gradient:c.gradient,_id:c.id,archived:c.archived||false};});
-      if(!cRows.length){cats=clone(DEFAULT_CATS);}
-    } catch(e){ console.warn('Categories load failed',e); cats=clone(DEFAULT_CATS); }
+      const cData = _settled(_fetches[1]);
+      if(cData.length){cats={};cData.forEach(c=>{cats[c.name]={icon:c.icon,color:c.color,bg:c.bg,gradient:c.gradient};});}
+      else cats = clone(DEFAULT_CATS);
+    } catch(e){ cats=clone(DEFAULT_CATS); }
 
-    // Videos + files
+    // Videos + Files
     try {
-      const vRows=await dbGetVideos()||[];
-      const fRows=await dbGetFiles()||[];
-      // Filter out locally-deleted videos
-      const deletedIds = new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
-      videos=vRows.filter(v=>!deletedIds.has(String(v.id))).map(v=>({
-        id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
-        duration:v.duration,desc:v.description,tags:v.tags||[],required:v.required,
-        featured:v.featured,expiresAt:v.expires_at||'',publishAt:v.publish_at||'',
-        archived:v.archived||false,
-        sortOrder:v.sort_order,addedAt:v.added_at,
-        files:fRows.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label,type:f.file_type,size:f.file_size,url:f.file_url,archived:f.archived||false}))
-      }));
-      if(!vRows.length){
-        const deletedIds2 = new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
-        videos=clone(DEFAULT_VIDEOS).map(v=>({...v,featured:false})).filter(v=>!deletedIds2.has(String(v.id)));
+      const vData=_settled(_fetches[2]), fData=_settled(_fetches[3]);
+      const deletedIds=new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
+      if(vData.length){
+        videos=vData.filter(v=>!deletedIds.has(String(v.id))).map(v=>({
+          id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
+          duration:v.duration,desc:v.description,tags:v.tags||[],required:v.required,
+          featured:v.featured,expiresAt:v.expires_at||'',publishAt:v.publish_at||'',
+          archived:v.archived||false,sortOrder:v.sort_order,addedAt:v.added_at,
+          files:fData.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label||f.name,url:f.url,type:f.file_type||'video'}))
+        }));
+      } else {
+        const d2=new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
+        videos=clone(DEFAULT_VIDEOS).map(v=>({...v,featured:false})).filter(v=>!d2.has(String(v.id)));
         [0,1,2].forEach(i=>{if(videos[i])videos[i].featured=true;});
       }
     } catch(e){ console.warn('Videos load failed',e); }
 
     // Users
     try {
-      _dbUsers=await dbGetUsers()||[];
-      _dbUsers=_dbUsers.map(u=>({...u,pass:u.pass||u.password||u.passwd||''}));
-    } catch(e){ console.warn('Users load failed',e); }
-
-    // User-specific data
-    if(_dbUser){
-      try {
-        _dbProgress=await dbGetProgress(_dbUser.id)||[];
-        _dbRecent=await dbGetRecent(_dbUser.id)||[];
-        _dbNotifs=await dbGetNotifs(_dbUser.id)||[];
-        watchedIds=new Set(_dbProgress.filter(p=>p.watched).map(p=>String(p.video_id)));
-        bookmarkIds=new Set(_dbProgress.filter(p=>p.bookmarked).map(p=>String(p.video_id)));
-        favoriteIds=new Set(_dbProgress.filter(p=>p.favorited).map(p=>String(p.video_id)));
-        recentIds=_dbRecent.map(r=>String(r.video_id));
-        _cachedAssignments=(await dbGetAssigns(_dbUser.id)||[]).map(a=>({
-          ...a,videoId:a.video_id,userId:a.user_id,
-          videoTitle:videos.find(v=>v.id===a.video_id)?.title||'Unknown',
-          assignedBy:a.assigned_by,due:a.due_date||'',notes:a.notes||''
-        }));
-      } catch(e){ console.warn('User data load failed',e); }
-    }
+      const uData=_settled(_fetches[4]);
+      _dbUsers=uData.map(u=>({...u,pass:u.pass||u.password||u.passwd||''}));
+    } catch(e){}
 
     // Analytics
     try {
-      const aRows = await dbGetAnalytics(90) || [];
-      _cachedAnalytics = aRows.map(r=>({
-        type:r.event_type, userId:r.user_id, userName:r.user_name,
-        role:r.role, videoId:r.video_id, videoTitle:r.video_title,
-        category:r.category, durationSecs:r.duration_secs,
-        fileName:r.file_name, ts:new Date(r.created_at).getTime()
-      }));
-    } catch(e) { _cachedAnalytics = []; }
+      const aData=_settled(_fetches[5]);
+      _cachedAnalytics=aData.map(r=>({type:r.event_type,userId:r.user_id,userName:r.user_name,role:r.role,videoId:r.video_id,videoTitle:r.video_title,category:r.category,durationSecs:r.duration_secs,fileName:r.file_name,ts:new Date(r.created_at).getTime()}));
+    } catch(e){ _cachedAnalytics=[]; }
 
     // Visibility
     try {
-      const visRows=await dbGetVis()||[];
-      const visObj={};visRows.forEach(r=>{visObj[`${r.role}__${r.cat_name}`]=r.visible;});
+      const visData=_settled(_fetches[6]);
+      const visObj={};visData.forEach(r=>{visObj[r.role+'__'+r.cat_name]=r.visible;});
       localStorage.setItem(VISIBILITY_KEY,JSON.stringify(visObj));
-    } catch(e){ console.warn('Visibility load failed',e); }
+    } catch(e){}
 
     // Ratings
     try {
-      const allRatings = await DB.get('mhu_ratings','') || [];
-      allRatings.forEach(r => {
-        if (!_ratingCache[r.video_id]) _ratingCache[r.video_id] = { sum:0, count:0, avg:0 };
-        _ratingCache[r.video_id].sum   = (_ratingCache[r.video_id].sum||0) + r.stars;
-        _ratingCache[r.video_id].count = (_ratingCache[r.video_id].count||0) + 1;
-        _ratingCache[r.video_id].avg   = _ratingCache[r.video_id].sum / _ratingCache[r.video_id].count;
+      const rData=_settled(_fetches[7]);
+      rData.forEach(r=>{
+        if(!_ratingCache[r.video_id]) _ratingCache[r.video_id]={sum:0,count:0,avg:0};
+        _ratingCache[r.video_id].sum+=r.stars||0; _ratingCache[r.video_id].count++;
+        _ratingCache[r.video_id].avg=_ratingCache[r.video_id].sum/_ratingCache[r.video_id].count;
       });
-    } catch(e){ console.warn('Ratings load failed',e); }
+    } catch(e){}
 
+    // ── User-specific data in parallel ─────────────────────────────
+    if(_dbUser){
+      try {
+        const [progRows,recRows,notifRows,assignRows] = await Promise.all([
+          dbGetProgress(_dbUser.id),
+          dbGetRecent(_dbUser.id),
+          dbGetNotifs(_dbUser.id),
+          dbGetAssigns(_dbUser.id)
+        ]);
+        _dbProgress = progRows||[];
+        _dbRecent   = recRows||[];
+        _dbNotifs   = notifRows||[];
+        watchedIds  = new Set(_dbProgress.filter(p=>p.watched).map(p=>String(p.video_id)));
+        bookmarkIds = new Set(_dbProgress.filter(p=>p.bookmarked).map(p=>String(p.video_id)));
+        favoriteIds = new Set(_dbProgress.filter(p=>p.favorited).map(p=>String(p.video_id)));
+        recentIds   = _dbRecent.map(r=>String(r.video_id));
+        _cachedAssignments=(assignRows||[]).map(a=>({...a,videoId:a.video_id,userId:a.user_id,videoTitle:videos.find(v=>v.id===a.video_id)?.title||'Unknown',assignedBy:a.assigned_by,due:a.due_date||'',notes:a.notes||''}));
+      } catch(e){ console.warn('User data load failed',e); }
+    }
     showSyncStatus('');
+    saveCache();
     const _mt=document.querySelector('.login-mosaic-track');if(_mt)_mt.remove();renderLoginMosaic();
     return true;
   }catch(e){console.error('Sync error',e);showSyncStatus('⚠ Offline mode');return false;}
 }
 // ── Override key functions to use Supabase ────────────────────
+
+
+// ── Performance: localStorage cache for instant repeat visits ────
+const CACHE_KEY = 'mhu_cache_v1';
+function saveCache() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      videos: videos.slice(0, 200),  // cap to avoid quota
+      cats: cats,
+      ts: Date.now()
+    }));
+  } catch(e) {}
+}
+function loadCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');
+    if (!c.ts || Date.now()-c.ts > 5*60*1000) return false; // 5 min TTL
+    if (c.videos && c.videos.length) { videos = c.videos; return true; }
+  } catch(e) {}
+  return false;
+}
 
 function allUsers(){return _dbUsers;}
 function getAssignments(){return _cachedAssignments;}
@@ -3287,8 +3318,16 @@ function renderHome() {
 }
 
 // ── Search helpers ───────────────────────────────────────────
-function setVideoSearch(q){ _videoSearch=q||''; window._videoPage=0; renderManage(); }
-function setTeamSearch(q){ _teamSearch=q||''; window._teamPage=0; renderManage(); }
+
+// ── Performance: debounce for search inputs ──────────────────────
+function debounce(fn, ms) {
+  let t; return function(...args){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,args), ms); };
+}
+const _debouncedVideoSearch = debounce(v=>{ window._videoSearch=v; window._videoPage=0; renderManage(); }, 250);
+const _debouncedTeamSearch  = debounce(v=>{ window._teamSearch=v;  window._teamPage=0;  renderManage(); }, 250);
+function setVideoSearch(q){ _debouncedVideoSearch(q||''); }
+function setTeamSearch(q){  _debouncedTeamSearch(q||'');  }
+
 
 // ── Bulk team operations ────────────────────────────────────
 async function bulkDeactivateTeam(){
@@ -6361,6 +6400,16 @@ window.addEventListener('unhandledrejection', function(e) {
   d.textContent = 'PROMISE ERROR: ' + (e.reason?.message || e.reason || 'Unknown');
   document.body.appendChild(d);
 });
+
+
+// ── Performance: throttle renderManage to avoid rapid re-renders ──
+let _renderManagePending = false;
+const _origRenderManage = renderManage;
+function renderManage() {
+  if (_renderManagePending) return;
+  _renderManagePending = true;
+  requestAnimationFrame(() => { _renderManagePending = false; _origRenderManage(); });
+}
 
 window.onload = async () => {
   activeFilter='All'; searchQuery='';
