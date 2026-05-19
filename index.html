@@ -22,8 +22,20 @@
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 
   /* LOGIN */
-  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#2c2c2c 0%,#1a1a1a 50%,#2e4a28 100%);}
-  .login-box{background:var(--white);border-radius:20px;padding:48px;width:440px;max-width:95vw;box-shadow:0 32px 80px rgba(0,0,0,.4);animation:fadeUp .5s ease both;}
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#070710;position:relative;overflow:hidden;}
+  .login-mosaic-track{position:absolute;inset:0;display:flex;gap:12px;padding:12px;animation:heroMosaicSlide 45s linear infinite;pointer-events:none;user-select:none;opacity:.55;filter:blur(1px);}
+  .login-mosaic-card{flex-shrink:0;border-radius:14px;overflow:hidden;position:relative;pointer-events:none;}
+  .login-mosaic-card.tall{width:240px;height:calc(100vh - 24px);}
+  .login-mosaic-card.wide{width:340px;height:calc(50vh - 18px);}
+  .login-mosaic-card.square{width:200px;height:calc(50vh - 18px);}
+  .login-mosaic-col{display:flex;flex-direction:column;gap:12px;flex-shrink:0;height:calc(100vh - 24px);}
+  .login-card-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .login-card-glow{position:absolute;inset:-4px;border-radius:18px;z-index:-1;opacity:.6;filter:blur(16px);}
+  .login-card-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.1) 100%);}
+  #login-screen::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(7,7,16,.4) 0%,rgba(7,7,16,.85) 100%);z-index:1;pointer-events:none;}
+  .login-box{background:rgba(15,15,25,.92);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:48px;width:440px;max-width:95vw;box-shadow:0 32px 80px rgba(0,0,0,.6),0 0 60px rgba(74,124,63,.15);animation:fadeUp .5s ease both;position:relative;z-index:2;}
+  .login-logo{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1.2;color:#fff;}
+  .login-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:28px;}
   .login-logo-wrap{display:flex;align-items:center;gap:14px;margin-bottom:8px;}
   .login-crest{width:52px;height:52px;background:var(--green);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
   .login-logo{font-family:'Syne',sans-serif;font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1.2;color:var(--black);}
@@ -548,7 +560,7 @@
   body.dark{--bg:#0f1117;--surface:#1a1d28;--border:#2a2e3d;--text:#e8eaf0;--muted:#6b7585;--white:#1a1d28;--green-bg:rgba(74,124,63,.12);--near-black:#0d0f18;}
   body.dark .topbar{background:#0d0f18;}
   body.dark .sidebar{background:#0d0f18;border-color:#1e2235;}
-  body.dark .login-box{background:#1a1d28;border:1px solid #2a2e3d;}
+  body.dark .login-box{background:rgba(10,10,20,.95);border:1px solid rgba(255,255,255,.12);}
   body.dark .lfield input{background:#0f1117;border-color:#2a2e3d;color:#e8eaf0;}
   body.dark .modal,.body.dark .edit-modal,.body.dark .asset-preview-modal{background:#1a1d28;}
   body.dark .vtable tr:hover td{background:rgba(74,124,63,.08);}
@@ -1265,7 +1277,12 @@ async function syncFromDB(){
       });
     } catch(e){ console.warn('Ratings load failed',e); }
 
-    showSyncStatus('');return true;
+    showSyncStatus('');
+    // Refresh login mosaic with real thumbnails now that videos are loaded
+    const mt = document.querySelector('.login-mosaic-track');
+    if(mt) mt.remove();
+    renderLoginMosaic();
+    return true;
   }catch(e){console.error('Sync error',e);showSyncStatus('⚠ Offline mode');return false;}
 }
 // ── Override key functions to use Supabase ────────────────────
@@ -3059,6 +3076,68 @@ function renderHero() {
     + '</div>';
 }
 
+
+function renderLoginMosaic() {
+  const GLOWS = [
+    'linear-gradient(135deg,#7c3aed,#4f46e5)',
+    'linear-gradient(135deg,#059669,#10b981)',
+    'linear-gradient(135deg,#dc2626,#f97316)',
+    'linear-gradient(135deg,#0891b2,#06b6d4)',
+    'linear-gradient(135deg,#d97706,#f59e0b)',
+    'linear-gradient(135deg,#db2777,#ec4899)',
+    'linear-gradient(135deg,#2563eb,#3b82f6)',
+    'linear-gradient(135deg,#16a34a,#84cc16)',
+    'linear-gradient(135deg,#9333ea,#c026d3)',
+    'linear-gradient(135deg,#ea580c,#f97316)',
+    'linear-gradient(135deg,#0284c7,#38bdf8)',
+    'linear-gradient(135deg,#be123c,#e11d48)',
+  ];
+
+  // Use featured videos if available, otherwise use all videos
+  const pool = videos.filter(v=>!v.archived && bestThumb(v));
+  const source = pool.length ? pool : [];
+
+  // Build cards — if no videos yet use colored placeholder tiles
+  const COUNT = 18;
+  let colHtml = '';
+  let ci = 0, gci = 0;
+
+  while (gci < COUNT) {
+    const glow = GLOWS[gci % GLOWS.length];
+    const v = source[gci % (source.length||1)];
+    const t = v ? bestThumb(v) : '';
+    const bgEl = t
+      ? '<img class="login-card-img" src="'+t+'" onerror="this.style.display=\'none\'"/>'
+      : '<div style="position:absolute;inset:0;background:'+glow+';opacity:.9"></div>';
+    const cardType = gci % 3 === 0 ? 'tall' : (gci % 3 === 1 ? 'wide' : 'square');
+
+    const card = '<div class="login-mosaic-card '+cardType+'">'
+      + '<div class="login-card-glow" style="background:'+glow+'"></div>'
+      + bgEl
+      + '<div class="login-card-grad"></div>'
+      + '</div>';
+
+    if (cardType === 'tall') {
+      colHtml += card;
+    } else if (cardType === 'wide') {
+      colHtml += '<div class="login-mosaic-col">' + card;
+    } else {
+      colHtml += card + '</div>';
+    }
+    gci++;
+  }
+
+  // Duplicate for seamless loop
+  const inner = colHtml + colHtml;
+  const track = document.createElement('div');
+  track.className = 'login-mosaic-track';
+  track.innerHTML = inner;
+
+  const screen = document.getElementById('login-screen');
+  if (screen && !screen.querySelector('.login-mosaic-track')) {
+    screen.insertBefore(track, screen.firstChild);
+  }
+}
 
 function setHighlight(i) {
   const role = effectiveRole();
@@ -6076,6 +6155,7 @@ window.addEventListener('unhandledrejection', function(e) {
 window.onload = async () => {
   activeFilter='All'; searchQuery='';
   applySettings(loadSettings());
+  renderLoginMosaic(); // show mosaic immediately with placeholders
   initDarkMode();
   initEmailJS();
   showSyncStatus('Connecting...');
