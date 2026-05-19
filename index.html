@@ -87,50 +87,46 @@
   .nav-div{border:none;border-top:1px solid #333;margin:16px 20px;}
   main{flex:1;overflow-y:auto;}
 
-  /* HERO */
-  .hero-section{background:var(--black);position:relative;overflow:hidden;}
+  /* HERO MOSAIC */
+  .hero-section{background:#0a0a0a;position:relative;overflow:hidden;height:420px;}
+  @keyframes heroMosaicSlide{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  @keyframes heroFadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes heroPulse{0%,100%{box-shadow:0 0 0 0 rgba(74,124,63,.5)}70%{box-shadow:0 0 0 14px rgba(74,124,63,0)}}
+  .hero-mosaic-track{display:flex;gap:12px;padding:12px;height:100%;animation:heroMosaicSlide 40s linear infinite;will-change:transform;}
+  .hero-mosaic-track:hover{animation-play-state:paused;}
+  .hero-mosaic-card{flex-shrink:0;border-radius:14px;overflow:hidden;position:relative;cursor:pointer;transition:transform .3s,box-shadow .3s;}
+  .hero-mosaic-card:hover{transform:scale(1.03) translateY(-4px);box-shadow:0 20px 50px rgba(0,0,0,.6);z-index:2;}
+  .hero-mosaic-card.tall{width:280px;height:396px;}
+  .hero-mosaic-card.wide{width:380px;height:192px;}
+  .hero-mosaic-card.square{width:230px;height:192px;}
+  .hero-mosaic-col{display:flex;flex-direction:column;gap:12px;flex-shrink:0;}
+  .hero-card-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .5s;}
+  .hero-mosaic-card:hover .hero-card-img{transform:scale(1.06);}
+  .hero-card-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.92) 0%,rgba(0,0,0,.3) 50%,rgba(0,0,0,.1) 100%);}
+  .hero-card-info{position:absolute;bottom:0;left:0;right:0;padding:16px;}
+  .hero-card-cat{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:4px;}
+  .hero-card-title{font-family:"Syne",sans-serif;font-size:14px;font-weight:800;color:#fff;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .hero-card-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);width:44px;height:44px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .25s,opacity .25s;opacity:0;}
+  .hero-mosaic-card:hover .hero-card-play{transform:translate(-50%,-50%) scale(1);opacity:1;}
+  .hero-card-play-tri{width:0;height:0;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:14px solid #fff;margin-left:3px;}
+  .hero-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;pointer-events:none;}
+  .hero-overlay-left{background:linear-gradient(to right,#0a0a0a 0%,rgba(10,10,10,.8) 30%,transparent 100%);width:380px;height:100%;display:flex;flex-direction:column;justify-content:center;padding:40px 44px;pointer-events:all;}
+  .hero-overlay-right{flex:1;background:linear-gradient(to left,#0a0a0a 0%,transparent 100%);height:100%;}
+  .hero-eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--green);color:#fff;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-bottom:14px;width:fit-content;animation:heroFadeUp .5s .05s both;}
+  .hero-title{font-family:"Syne",sans-serif;font-size:28px;font-weight:800;color:#fff;line-height:1.2;letter-spacing:-.5px;margin-bottom:10px;animation:heroFadeUp .5s .12s both;}
+  .hero-desc{color:rgba(255,255,255,.6);font-size:13px;line-height:1.6;margin-bottom:20px;animation:heroFadeUp .5s .18s both;}
+  .hero-watch-btn{display:inline-flex;align-items:center;gap:10px;background:var(--green);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-family:"Syne",sans-serif;font-weight:700;cursor:pointer;transition:all .2s;animation:heroFadeUp .5s .24s both,heroPulse 2.5s 1s infinite;}
+  .hero-watch-btn:hover{background:var(--green-dark);transform:translateY(-2px) scale(1.04);box-shadow:0 8px 24px rgba(74,124,63,.5);animation:none;}
+  .hpi{width:22px;height:22px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .hpt{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:9px solid #fff;margin-left:2px;}
+  .hero-dots{display:flex;gap:6px;margin-top:16px;animation:heroFadeUp .5s .3s both;}
+  .hdot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;transition:all .2s;pointer-events:all;}
+  .hdot.active{background:var(--green);width:20px;border-radius:3px;}
   @keyframes heroBgDrift{0%{transform:scale(1.08) translate(0,0)}50%{transform:scale(1.13) translate(-1%,-1%)}100%{transform:scale(1.08) translate(0,0)}}
   @keyframes heroFadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
   @keyframes heroPulse{0%,100%{box-shadow:0 0 0 0 rgba(74,124,63,.45)}70%{box-shadow:0 0 0 12px rgba(74,124,63,0)}}
   @keyframes heroProgress{from{width:0%}to{width:100%}}
   @keyframes heroSlideIn{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
-  .hero-inner{display:flex;align-items:stretch;min-height:320px;position:relative;z-index:2;}
-  .hero-dark{position:absolute;inset:0;background:linear-gradient(135deg,rgba(0,0,0,.75) 0%,rgba(0,0,0,.35) 100%);z-index:1;}
-  .hero-text{flex:1;padding:40px 44px;display:flex;flex-direction:column;justify-content:center;}
-  .hero-eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--green);color:#fff;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-bottom:14px;width:fit-content;}
-  .hero-title{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.5px;margin-bottom:10px;}
-  .hero-desc{color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;max-width:420px;margin-bottom:24px;}
-  .hero-meta{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
-  .hero-cat-tag{font-size:12px;font-weight:600;padding:4px 11px;border-radius:20px;border:1.5px solid rgba(255,255,255,.3);color:rgba(255,255,255,.8);}
-  .hero-dur{font-size:13px;color:rgba(255,255,255,.5);}
-  .hero-thumbs{width:270px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:24px 20px 24px 0;}
-  .hero-bg-layer{position:absolute;inset:-8%;background-size:cover;background-position:center;opacity:.28;animation:heroBgDrift 14s ease-in-out infinite;transition:background-image .7s ease;}
-  .hero-dark{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:1;}
-  .hero-text{flex:1;padding:40px 44px;display:flex;flex-direction:column;justify-content:center;}
-  .hero-eyebrow{display:inline-flex;align-items:center;gap:7px;background:var(--green);color:#fff;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 12px;border-radius:20px;margin-bottom:16px;width:fit-content;}
-  .hero-title{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;color:#fff;line-height:1.15;letter-spacing:-.5px;margin-bottom:12px;max-width:460px;}
-  .hero-desc{color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;max-width:420px;margin-bottom:24px;}
-  .hero-meta{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
-  .hero-cat-tag{font-size:12px;font-weight:600;padding:4px 11px;border-radius:20px;border:1.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.75);}
-  .hero-dur{font-size:13px;color:rgba(255,255,255,.5);}
-  .hero-watch-btn{display:inline-flex;align-items:center;gap:10px;background:var(--green);color:#fff;border:none;border-radius:10px;padding:12px 22px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;width:fit-content;transition:background .2s,transform .15s;}
-  .hero-watch-btn{display:inline-flex;align-items:center;gap:10px;background:var(--green);color:#fff;border:none;border-radius:12px;padding:13px 26px;font-size:15px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;transition:all .2s;}
-  .hero-watch-btn:hover{background:var(--green-dark);transform:translateY(-2px) scale(1.03);box-shadow:0 8px 24px rgba(74,124,63,.4);}
-  .hpi{width:24px;height:24px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-  .hpt{width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:9px solid #fff;margin-left:2px;}
-  .hero-thumbs{width:270px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:24px 20px 24px 0;}
-  .hero-thumb-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;cursor:pointer;transition:background .2s;border:1.5px solid transparent;}
-  .hero-thumb-item:hover{background:rgba(255,255,255,.09);transform:translateX(-3px);}
-  .hero-thumb-item.active{background:rgba(74,124,63,.2);border-color:var(--green);}
-  .tmini{width:68px;height:42px;border-radius:6px;flex-shrink:0;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
-  .tmini-play{width:20px;height:20px;background:rgba(255,255,255,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;z-index:2;}
-  .tmini-tri{width:0;height:0;border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:7px solid #fff;margin-left:1px;}
-  .tmini-info{flex:1;min-width:0;}
-  .tmini-title{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:rgba(255,255,255,.85);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .tmini-cat{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .hero-dots{position:absolute;bottom:14px;left:44px;display:flex;gap:6px;z-index:3;}
-  .hdot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.25);cursor:pointer;transition:background .2s,transform .2s;}
-  .hdot.active{background:var(--green);transform:scale(1.3);}
 
   /* LIBRARY */
   .lib-body{padding:32px;}
@@ -2975,66 +2971,97 @@ function setFilter(f) {
 
 function renderHero() {
   const role = effectiveRole();
-  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0, 3);
+  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0, 15);
   if (!fv.length) return '';
   const pri = fv[activeHighlight] || fv[0];
-  const m   = cats[pri.category] || { icon:'📁', color:'#4a7c3f', bg:'rgba(74,124,63,.12)', gradient:'#1a2e18,#0f1a0d' };
-  const bt  = bestThumb(pri);
-  const bgStyle = bt ? 'background-image:url(\''+bt+'\');background-size:cover;background-position:center;'
-                     : 'background:linear-gradient(135deg,'+m.gradient+');';
-  const thumbItems = fv.map((v,i) => {
-    const vm=cats[v.category]||{gradient:'#1a1a1a,#2a2a2a'}; const t=bestThumb(v);
-    const delay = (.08+i*.09)+'s';
-    return '<div class="hero-thumb-item '+(i===activeHighlight?'active':'')+'" onclick="setHighlight('+i+')" style="animation:heroSlideIn .4s '+delay+' cubic-bezier(.22,1,.36,1) both">'
-      +'<div class="tmini">'
-      +(t?'<img src="'+t+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.background=\"#222\""/>'
-          :'<div style="position:absolute;inset:0;background:linear-gradient(135deg,'+vm.gradient+')"></div>')
-      +'<div class="tmini-play"><div class="tmini-tri"></div></div></div>'
-      +'<div class="tmini-info"><div class="tmini-title">'+v.title+'</div><div class="tmini-cat">'+v.category+'</div></div></div>';
-  }).join('');
-  const dots = fv.map((_,i) => '<div class="hdot '+(i===activeHighlight?'active':'')+'" onclick="setHighlight('+i+')" style="cursor:pointer"></div>').join('');
-  return '<div class="hero-section" id="hero-section-el">'
-    +'<div class="hero-bg-layer" style="'+bgStyle+'"></div>'
-    +'<div class="hero-dark"></div>'
-    +(fv.length>1?'<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.1);z-index:4"><div id="hero-progress" style="height:100%;background:var(--green);width:0%;transition:none"></div></div>':'')
-    +'<div class="hero-inner">'
-    +'<div class="hero-text" style="animation:heroFadeUp .5s cubic-bezier(.22,1,.36,1) both">'
-    +'<div class="hero-eyebrow" style="animation:heroFadeUp .4s .05s both">⭐ Featured Resource</div>'
-    +'<div class="hero-title" style="animation:heroFadeUp .4s .12s both">'+pri.title+'</div>'
-    +'<div class="hero-desc" style="animation:heroFadeUp .4s .18s both">'+( pri.desc||'')+'</div>'
-    +'<div class="hero-meta" style="animation:heroFadeUp .4s .24s both"><span class="hero-cat-tag">'+m.icon+' '+pri.category+'</span><span class="hero-dur">'+( pri.duration||'')+'</span></div>'
-    +'<div style="animation:heroFadeUp .4s .3s both"><button class="hero-watch-btn" onclick="openModal(\''+pri.id+'\')"><div class="hpi"><div class="hpt"></div></div>Watch Now</button></div>'
+  const m = cats[pri.category] || {icon:'📁',color:'#4a7c3f'};
+
+  // Build mosaic cards - duplicate the array so scroll looks infinite
+  const allCards = [...fv, ...fv]; // duplicate for seamless loop
+  function mosaicCard(v, size) {
+    const t = bestThumb(v);
+    const cm = cats[v.category] || {icon:'📁'};
+    const bg = t
+      ? '<img class="hero-card-img" src="'+t+'" onerror="this.parentNode.style.background=\'#111\'" />'
+      : '<div style="position:absolute;inset:0;background:linear-gradient(135deg,#1a3a1a,#0a1a0a)"></div>';
+    return '<div class="hero-mosaic-card '+size+'" onclick="setHighlight('+fv.indexOf(v)+');openModal(\''+v.id+'\')">'
+      +bg
+      +'<div class="hero-card-grad"></div>'
+      +'<div class="hero-card-play"><div class="hero-card-play-tri"></div></div>'
+      +'<div class="hero-card-info">'
+      +'<div class="hero-card-cat">'+cm.icon+' '+v.category+'</div>'
+      +'<div class="hero-card-title">'+v.title+'</div>'
+      +'</div>'
+      +'</div>';
+  }
+
+  // Build columns: tall | [wide,square] | tall | [wide,square] ...
+  let colHtml = '';
+  const cards = allCards;
+  let ci = 0;
+  while(ci < cards.length) {
+    // Column type alternates: A=tall, B=two-stacked
+    if(ci % 3 === 0 && cards[ci]) {
+      colHtml += mosaicCard(cards[ci], 'tall');
+      ci++;
+    } else {
+      let col = '<div class="hero-mosaic-col">';
+      if(cards[ci]) { col += mosaicCard(cards[ci], 'wide'); ci++; }
+      if(cards[ci]) { col += mosaicCard(cards[ci], 'square'); ci++; }
+      colHtml += col + '</div>';
+    }
+  }
+
+  const dots = fv.map((_,i) => '<div class="hdot '+(i===activeHighlight?'active':'')+'" onclick="setHighlight('+i+')"></div>').join('');
+
+  return '<div class="hero-section">'
+    +'<div class="hero-mosaic-track" id="hero-track">'
+    +colHtml
     +'</div>'
-    +'<div class="hero-thumbs">'+thumbItems+'</div>'
-    +'</div>'
+    +'<div class="hero-overlay">'
+    +'<div class="hero-overlay-left">'
+    +'<div class="hero-eyebrow">⭐ Featured Resource</div>'
+    +'<div class="hero-title">'+(pri.title||'')+'</div>'
+    +'<div class="hero-desc">'+(pri.desc||'')+'</div>'
+    +'<button class="hero-watch-btn" onclick="openModal(\''+pri.id+'\')"><div class="hpi"><div class="hpt"></div></div>Watch Now</button>'
     +'<div class="hero-dots">'+dots+'</div>'
+    +'</div>'
+    +'<div class="hero-overlay-right"></div>'
+    +'</div>'
     +'</div>';
 }
 
 function setHighlight(i) {
-  activeHighlight = i;
-  renderHome();
-  if(window._heroTimer) clearTimeout(window._heroTimer);
-  startHeroAutoAdvance();
+  const role = effectiveRole();
+  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0,15);
+  activeHighlight = Math.max(0, Math.min(i, fv.length-1));
+  // Update overlay text without full re-render
+  const pri = fv[activeHighlight];
+  if (!pri) return;
+  const titleEl = document.querySelector('.hero-title');
+  const descEl = document.querySelector('.hero-desc');
+  const btnEl = document.querySelector('.hero-watch-btn');
+  if(titleEl) titleEl.textContent = pri.title;
+  if(descEl) descEl.textContent = pri.desc||''
+  if(btnEl) btnEl.onclick = function(){ openModal(pri.id); };
+  // Update dots
+  document.querySelectorAll('.hdot').forEach((d,di) => {
+    d.classList.toggle('active', di===activeHighlight);
+  });
 }
 
 function startHeroAutoAdvance() {
   const role = effectiveRole();
-  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0,3);
+  const fv = videos.filter(v => v.featured && videoVisible(v) && roleCanSeeCat(role, v.category)).slice(0,15);
   if(fv.length < 2) return;
-  const DURATION = 6000;
-  const bar = document.getElementById('hero-progress');
-  if(bar) { bar.style.transition='none'; bar.style.width='0%'; setTimeout(()=>{ if(bar){bar.style.transition='width '+DURATION+'ms linear';bar.style.width='100%';}},50); }
+  if(window._heroTimer) clearTimeout(window._heroTimer);
   window._heroTimer = setTimeout(() => {
     activeHighlight = (activeHighlight + 1) % fv.length;
-    renderHome();
+    setHighlight(activeHighlight);
     startHeroAutoAdvance();
-  }, DURATION);
+  }, 5000);
 }
 
-// ===============================================================
-//  HOME
-// ===============================================================
 function renderHome() {
   renderSidebar();
   const role = effectiveRole();
@@ -3842,7 +3869,7 @@ async function deleteVideo(id){
 function toggleFeatured(id){
   const sid=String(id);const v=videos.find(x=>String(x.id)===sid);if(!v)return;
   const featCount=videos.filter(x=>x.featured).length;
-  if(!v.featured&&featCount>=3){showToast('Max 3 featured videos');return;}
+  if(!v.featured&&featCount>=15){showToast('Max 15 featured videos');return;}
   v.featured=!v.featured;saveData();showToast(v.featured?'Added to featured!':'Removed from featured');renderManage();
 }
 
