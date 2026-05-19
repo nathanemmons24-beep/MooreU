@@ -3102,18 +3102,32 @@ function renderHome() {
     html = Object.entries(byCat).map(([cat, vids]) => {
       const m = cats[cat]||{icon:'📁',color:'#4a7c3f',bg:'rgba(74,124,63,.12)',gradient:'#1a2e18,#0f1f0d'};
       const catId = 'grid-' + cat.replace(/[^a-zA-Z0-9]/g,'-');
-      return `<div class="cat-section" id="cat-sec-${cat.replace(/[^a-zA-Z0-9]/g,'-')}">
-        <div class="sec-header">
-          <div class="sec-icon">${m.icon}</div>
-          <div class="sec-name">${cat}</div>
-          <div class="sec-count">${vids.length} resource${vids.length!==1?'s':''}</div>
-        </div>
-        <div style="position:relative">
-          <button class="carousel-btn prev" id="${catId}-prev" onclick="carouselScroll('${catId}',-1)" aria-label="Previous">‹</button>
-          <div class="video-grid" id="${catId}" style="scroll-behavior:smooth">${vids.map(v=>videoCard(v,m)).join('')}</div>
-          <button class="carousel-btn next" id="${catId}-next" onclick="carouselScroll('${catId}',1)" aria-label="Next">›</button>
-        </div>
-      </div>`;
+      const isAllView = (activeFilter === 'All' && !searchQuery);
+      let displayVids = vids;
+      let hasMore = false;
+      if (isAllView && vids.length > 6) {
+        const feat = vids.filter(v=>v.featured);
+        const rest = vids.filter(v=>!v.featured).sort((a,b)=>new Date(b.addedAt||0)-new Date(a.addedAt||0));
+        displayVids = feat.concat(rest).slice(0,6);
+        hasMore = true;
+      }
+      const safeCat = cat.replace(/'/g,"\\'");
+      const viewAllBtnHdr = hasMore ? '<button onclick="setFilter(\'' + safeCat + '\');renderHome()" style="margin-left:auto;background:none;border:none;color:var(--green);font-size:12px;font-weight:700;cursor:pointer;padding:0;font-family:\'Syne\',sans-serif">View All \u2192</button>' : '';
+      const seeMoreRow = hasMore ? '<div style="display:flex;justify-content:center;margin-top:14px"><button onclick="setFilter(\'' + safeCat + '\');renderHome()" style="background:none;border:1.5px solid var(--green);color:var(--green);border-radius:10px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s" onmouseover="this.style.background=\'var(--green)\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--green)\'">See All ' + vids.length + ' Resources \u2192</button></div>' : '';
+      return '<div class="cat-section" id="cat-sec-' + cat.replace(/[^a-zA-Z0-9]/g,'-') + '">'
+        + '<div class="sec-header">'
+        + '<div class="sec-icon">' + m.icon + '</div>'
+        + '<div class="sec-name">' + cat + '</div>'
+        + '<div class="sec-count">' + vids.length + ' resource' + (vids.length!==1?'s':'') + '</div>'
+        + viewAllBtnHdr
+        + '</div>'
+        + '<div style="position:relative">'
+        + '<button class="carousel-btn prev" id="' + catId + '-prev" onclick="carouselScroll(\'' + catId + '\',-1)" aria-label="Previous"></button>'
+        + '<div class="video-grid" id="' + catId + '" style="scroll-behavior:smooth">' + displayVids.map(v=>videoCard(v,m)).join('') + '</div>'
+        + '<button class="carousel-btn next" id="' + catId + '-next" onclick="carouselScroll(\'' + catId + '\',1)" aria-label="Next"></button>'
+        + '</div>'
+        + seeMoreRow
+        + '</div>';
     }).join('');
   }
 
