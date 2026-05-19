@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a1a1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <title>Moore Holdings University</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -460,18 +460,19 @@
     .logout-btn{padding:6px 10px;font-size:12px;}
 
     /* ── Hero Mosaic — mobile ── */
-    .hero-section{height:260px;}
-    .hero-mosaic-track{gap:8px;padding:8px;}
-    .hero-mosaic-card.tall{width:160px;height:244px;}
-    .hero-mosaic-card.wide{width:220px;height:116px;}
-    .hero-mosaic-card.square{width:140px;height:116px;}
-    .hero-mosaic-col{gap:8px;}
-    .hero-featured-title{font-size:36px;-webkit-text-stroke:1.5px rgba(255,255,255,.8);}
-    .hero-card-title{font-size:11px;}
-    .hero-card-cat{font-size:9px;}
-    .hero-card-info{padding:8px 10px;}
-    .hero-card-play{width:32px;height:32px;}
-    .hero-card-play-tri{border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:10px solid #fff;}
+    .hero-section{height:220px;}
+    .hero-mosaic-track{gap:6px;padding:6px;}
+    .hero-mosaic-card.tall{width:130px;height:208px;}
+    .hero-mosaic-card.wide{width:180px;height:100px;}
+    .hero-mosaic-card.square{width:120px;height:100px;}
+    .hero-mosaic-col{gap:6px;}
+    .hero-featured-title{font-size:28px;letter-spacing:-.02em;-webkit-text-stroke:1px rgba(255,255,255,.7);}
+    .hero-card-title{font-size:10px;line-clamp:1;-webkit-line-clamp:1;}
+    .hero-card-cat{font-size:8px;letter-spacing:.06em;}
+    .hero-card-info{padding:6px 8px;}
+    .hero-card-play{width:28px;height:28px;}
+    .hero-card-play-tri{border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:8px solid #fff;margin-left:2px;}
+    .hero-mosaic-card:hover{transform:none;}
 
     /* ── Library ── */
     .lib-body{padding:12px 12px 80px;}
@@ -682,11 +683,11 @@
     .video-grid .video-card{min-width:82vw;max-width:82vw;}
     .assets-grid{grid-template-columns:1fr;}
     .tasks-stats-row,.analytics-grid{grid-template-columns:repeat(2,1fr);}
-    .hero-section{height:220px;}
-    .hero-mosaic-card.tall{width:130px;height:204px;}
-    .hero-mosaic-card.wide{width:180px;height:96px;}
-    .hero-mosaic-card.square{width:120px;height:96px;}
-    .hero-featured-title{font-size:28px;}
+    .hero-section{height:190px;}
+    .hero-mosaic-card.tall{width:110px;height:178px;}
+    .hero-mosaic-card.wide{width:150px;height:84px;}
+    .hero-mosaic-card.square{width:100px;height:84px;}
+    .hero-featured-title{font-size:22px;}
     .topbar-logo{font-size:13px;}
     .login-box{padding:28px 18px;}
   }
@@ -1018,6 +1019,11 @@
   .fav-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:4;font-size:15px;transition:all .2s;backdrop-filter:blur(4px);line-height:1;}
   .fav-btn:hover{background:rgba(220,38,38,.6);transform:scale(1.15);}
   .fav-btn.fav-active{background:rgba(220,38,38,.75);}
+
+  /* Safe area insets for notch / Dynamic Island / status bar */
+  body{padding-top:env(safe-area-inset-top,0px);}
+  .topbar{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+  #login-screen{padding-top:max(20px,env(safe-area-inset-top,0px));}
 </style>
 </head>
 <body>
