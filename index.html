@@ -1513,18 +1513,22 @@ async function toggleUserInactive(username){
   showToast(u.inactive?`🚫 ${u.name} deactivated`:`✅ ${u.name} reactivated`);renderManage();
 }
 async function saveUserEdit(){
-  const u=_dbUsers.find(u=>u.username===editingUserId||u.id===editingUserId);if(!u)return;
-  const nm=document.getElementById('eu-name')?.value.trim();
-  const em=document.getElementById('eu-email')?.value.trim();
-  const pw=document.getElementById('eu-pass')?.value;
-  const ro=document.getElementById('eu-role')?.value;
-  const mk=document.getElementById('eu-market')?.value||u.market||'';
+  const u=_dbUsers.find(u=>u.username===editingUserId||u.id===editingUserId);
+  if(!u){showToast('⚠ User not found');return;}
+  const nm=document.getElementById('edit-user-name')?.value.trim();
+  const em=document.getElementById('edit-user-email')?.value.trim();
+  const pw=document.getElementById('edit-user-pass')?.value;
+  const ro=document.getElementById('edit-user-role')?.value;
+  const mk=document.getElementById('edit-user-market')?.value||u.market||'';
   if(!nm){showToast('⚠ Name cannot be empty');return;}
-  if(pw&&pw.length<6){showToast('⚠ Password min 6 chars');return;}
+  if(pw&&pw.length<4){showToast('⚠ Password too short');return;}
   const upd={name:nm,email:em,role:ro,market:mk};
-  if(pw&&pw.length>=6)upd.pass=pw;
-  await dbUpdateUser(u.id,upd);Object.assign(u,upd);
-  showToast(`✅ ${u.name} updated`);closeUserEditModal();renderManage();
+  if(pw&&pw.length>=4)upd.pass=pw;
+  await dbUpdateUser(u.id,upd);
+  Object.assign(u,upd);
+  showToast('✅ '+nm+' updated');
+  closeUserEditModal();
+  renderManage();
 }
 async function duplicateTeamUser(username){
   const u=_dbUsers.find(u=>u.username===username||u.id===username);if(!u)return;
@@ -5061,7 +5065,7 @@ function renderArchivePage(){
 // ASSIGN MODAL
 // ===============================================================
 let assignVideoId=null;
-function openAssignModal(id){
+function openVideoAssignModal(id){
   assignVideoId=String(id);const v=videos.find(x=>String(x.id)===String(id));if(!v)return;
   const users=allUsers().filter(u=>u.role!=='admin'&&!u.inactive);
   const userChecks=users.map(u=>`<label style="display:flex;align-items:center;gap:8px;padding:7px;border-radius:7px;cursor:pointer" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
