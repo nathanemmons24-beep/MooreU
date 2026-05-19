@@ -4549,42 +4549,146 @@ function renderReportsPanel(){
 
   const rows=users.map((u,i)=>{
     const uid=u.id||u.username;
-    const watched=reqVids.filter(v=>_cachedAnalytics.some(e=>(e.type==='view'||e.type==='watch_time')&&String(e.videoId)===String(v.id)&&e.userId===uid));
+    const watched=reqVids.filter(v=>_cachedAnalytics.some(e=>(e.type==='view'||e.type==='watch_time')&&String(e.userId)===String(uid)&&String(e.videoId)===String(v.id)));
     const pct=reqVids.length?Math.round(watched.length/reqVids.length*100):100;
     const canCert=pct===100;
-    return `<tr>
-      <td><div style="display:flex;align-items:center;gap:8px">
-        <div style="width:26px;height:26px;border-radius:50%;background:${AVATAR_COLORS[i%AVATAR_COLORS.length]};display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:11px;color:#fff">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
-        <div style="font-size:13px;font-weight:600">${u.name}</div>
-      </div></td>
-      <td style="font-size:12px;color:var(--muted)">${u.market||'—'}</td>
-      <td>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <div style="font-size:11px;color:var(--muted);margin-top:3px">${watched.length}/${reqVids.length} (${pct}%)</div>
-      </td>
-      <td>
-        <button class="edit-btn" onclick="openUserReport('${uid}')" title="Full report">Report</button>
-        ${canCert?`<button class="edit-btn" onclick="downloadCertificate('${uid}')" style="margin-left:4px">Cert</button>`:''}
-      </td>
-    </tr>`;
+    return '<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="width:26px;height:26px;border-radius:50%;background:'+AVATAR_COLORS[i%AVATAR_COLORS.length]+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">'+( u.name||'?').charAt(0).toUpperCase()+'</div>'
+      +'<div style="font-size:13px;font-weight:600">'+u.name+'</div>'
+      +'</div></td>'
+      +'<td style="font-size:12px;color:var(--muted)">'+( u.market||'—')+'</td>'
+      +'<td><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%"></div></div>'
+      +'<div style="font-size:11px;color:var(--muted);margin-top:3px">'+watched.length+'/'+reqVids.length+' ('+pct+'%)</div></td>'
+      +'<td>'
+      +'<button class="edit-btn" onclick="openAssignModal(\''+uid+'\')" style="background:var(--green-bg);color:var(--green);border-color:var(--green)">📋 Assign</button>'
+      +'<button class="edit-btn" onclick="openUserReport(\''+uid+'\')" title="Full report" style="margin-left:4px">Report</button>'
+      +(canCert?'<button class="edit-btn" onclick="downloadCertificate(\''+uid+'\')" style="margin-left:4px">Cert</button>':'')
+      +'</td>'
+      +'</tr>';
   }).join('');
 
-  return `
-  <div class="acard">
-    <div class="acard-title">Team Completion</div>
-    <div class="acard-sub">Required training progress for all team members.</div>
-    <div class="vtable-wrap">
-      <table class="report-table">
-        <thead><tr><th>Name</th><th>Market</th><th>Progress</th><th>Actions</th></tr></thead>
-        <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No team members yet.</td></tr>'}</tbody>
-      </table>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="export-btn" onclick="exportCompletionCSV()">Export CSV</button>
-    </div>
-  </div>`;
+  return '<div class="acard">'
+    +'<div class="acard-title">Team Completion</div>'
+    +'<div class="acard-sub">Required training progress. Click Assign to assign videos or paths to a user.</div>'
+    +'<div class="vtable-wrap"><table class="report-table">'
+    +'<thead><tr><th>Name</th><th>Market</th><th>Progress</th><th>Actions</th></tr></thead>'
+    +'<tbody>'+(rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No team members.</td></tr>')+'</tbody>'
+    +'</table></div>'
+    +'<div style="display:flex;gap:10px;margin-top:14px">'
+    +'<button class="export-btn" onclick="exportCompletionCSV()">Export CSV</button>'
+    +'</div></div>';
 }
 
+function openAssignModal(userId) {
+  const u = allUsers().find(x=>(x.id||x.username)===userId);
+  if (!u) return;
+  const allVids = videos.filter(v=>!v.archived&&!isExpired(v));
+  const paths = getPaths();
+  const cats = [...new Set(allVids.map(v=>v.category))].sort();
+  const existing = _cachedAssignments.filter(a=>String(a.userId)===String(userId));
+  const existingVidIds = new Set(existing.map(a=>String(a.videoId)));
+
+  // Recommended: required videos not yet watched
+  const watched = new Set(_cachedAnalytics.filter(e=>(e.type==='view'||e.type==='watch_time')&&String(e.userId)===String(userId)).map(e=>String(e.videoId)));
+  const recommended = allVids.filter(v=>v.required&&!watched.has(String(v.id))).slice(0,5);
+
+  const recSection = recommended.length ? '<div style="margin-bottom:16px;padding:12px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">⭐ Recommended — Required videos not yet watched</div>'
+    +recommended.map(v=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer">'
+      +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
+      +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+      +'<span style="font-size:11px;color:var(--green);font-weight:600">Required</span>'
+      +'</label>').join('')
+    +'</div>' : '';
+
+  const catOpts = cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+  const vidList = allVids.map(v=>
+    '<label class="assign-vid-label" data-cat="'+v.category+'" data-title="'+v.title.toLowerCase()+'" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'\'">'
+    +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
+    +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+v.category+'</span>'
+    +'</label>'
+  ).join('');
+
+  const pathList = paths.map(p=>
+    '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'\'">'
+    +'<input type="checkbox" class="assign-path-cb" value="'+p.id+'" style="accent-color:var(--green);cursor:pointer"/>'
+    +'<div style="flex:1"><div style="font-size:13px;font-weight:600">📁 '+p.name+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">'+(p.videoIds||[]).length+' videos'+(p.desc?' · '+p.desc:'')+'</div></div>'
+    +'</label>'
+  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">No training paths created yet.</div>';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'assign-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:580px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:18px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:12px">'
+    +'<div style="flex:1"><div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">Assign Training</div>'
+    +'<div style="font-size:12px;color:var(--muted)">'+u.name+' · '+(u.market||'')+'</div></div>'
+    +'<button onclick="document.getElementById(\'assign-modal\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +recSection
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Videos</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+    +'<input type="text" id="assign-vid-search" placeholder="🔍 Search videos..." oninput="filterAssignVids()" style="flex:1;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<select id="assign-cat-filter" onchange="filterAssignVids()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"><option value="">All Categories</option>'+catOpts+'</select>'
+    +'</div>'
+    +'<div id="assign-vid-list" style="border:1.5px solid var(--border);border-radius:10px;max-height:200px;overflow-y:auto;padding:6px;margin-bottom:16px">'+vidList+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Training Paths</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:160px;overflow-y:auto;padding:6px">'+pathList+'</div>'
+    +'<div style="margin-top:14px"><label style="font-size:13px;font-weight:600">Due Date (optional)</label>'
+    +'<input type="date" id="assign-due" style="margin-top:6px;width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/></div>'
+    +'</div>'
+    +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
+    +'<button onclick="saveAssignments(\''+userId+'\')" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:Syne,sans-serif;font-weight:700;font-size:14px;cursor:pointer;flex:1">Save Assignments</button>'
+    +'<button onclick="document.getElementById(\'assign-modal\').remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 16px;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function filterAssignVids() {
+  const q = (document.getElementById('assign-vid-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('assign-cat-filter')?.value||'';
+  document.querySelectorAll('#assign-vid-list .assign-vid-label').forEach(el => {
+    const t = el.dataset.title||'';
+    const c = el.dataset.cat||'';
+    el.style.display = ((!q||t.includes(q))&&(!cat||c===cat)) ? '' : 'none';
+  });
+}
+
+async function saveAssignments(userId) {
+  const vidIds = [...document.querySelectorAll('.assign-vid-cb:checked')].map(cb=>cb.value);
+  const pathIds = [...document.querySelectorAll('.assign-path-cb:checked')].map(cb=>cb.value);
+  const due = document.getElementById('assign-due')?.value||'';
+  let count = 0;
+  // Assign individual videos
+  for (const vid of vidIds) {
+    const already = _cachedAssignments.some(a=>String(a.userId)===String(userId)&&String(a.videoId)===String(vid));
+    if (!already) {
+      const row = {user_id:userId,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:''};
+      await DB.post('mhu_assignments',row);
+      count++;
+    }
+  }
+  // Assign all videos in selected paths
+  for (const pid of pathIds) {
+    const p = getPaths().find(x=>x.id===pid);
+    if (!p) continue;
+    for (const vid of (p.videoIds||[])) {
+      const already = _cachedAssignments.some(a=>String(a.userId)===String(userId)&&String(a.videoId)===String(vid));
+      if (!already) {
+        const row = {user_id:userId,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:'Path: '+p.name};
+        await DB.post('mhu_assignments',row);
+        count++;
+      }
+    }
+  }
+  document.getElementById('assign-modal')?.remove();
+  showToast('✅ Assigned '+count+' item'+(count!==1?'s':'')+' to '+allUsers().find(u=>(u.id||u.username)===userId)?.name);
+  renderManage();
+}
 function exportCompletionCSV(){
   const reqVids=videos.filter(v=>v.required&&!isExpired(v)&&!v.archived);
   const users=allUsers().filter(u=>u.role!=='admin'&&!u.inactive);
@@ -4634,67 +4738,173 @@ function getPaths(){try{return JSON.parse(localStorage.getItem('mhu_paths')||'[]
 function savePaths(paths){localStorage.setItem('mhu_paths',JSON.stringify(paths));}
 
 function renderPathsPanel(){
-  const paths=getPaths();
-  const allVids=videos.filter(v=>!isExpired(v)&&!v.archived);
-  const pathCards=paths.length?paths.map((p,pi)=>{
-    const vids=p.videoIds.map(id=>allVids.find(v=>String(v.id)===String(id))).filter(Boolean);
-    return `<div class="acard" style="margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="font-size:22px">${p.icon||'X'}</div>
-        <div style="flex:1"><div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:800">${p.name}</div>
-          <div style="font-size:12px;color:var(--muted)">${vids.length} video${vids.length!==1?'s':''} · ${p.desc||'No description'}</div></div>
-        <button class="del-btn" onclick="deletePath(${pi})">Delete</button>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        ${vids.map((v,vi)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px">
-          <span style="font-size:12px;font-weight:700;color:var(--muted);width:20px;text-align:center">${vi+1}</span>
-          <div style="flex:1;font-size:13px;font-weight:600">${v.title}</div>
-          <span style="font-size:11px;color:var(--muted)">${v.duration}</span>
-        </div>`).join('')}
-      </div>
-    </div>`;
-  }).join(''):`<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No training paths yet.</div>`;
+  const paths = getPaths();
+  const allVids = videos.filter(v=>!isExpired(v)&&!v.archived);
+  const users = allUsers().filter(u=>!u.inactive);
 
-  const videoCheckboxes=allVids.map(v=>`
-    <label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
-      <input type="checkbox" class="path-vid-cb" value="${v.id}" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/>
-      <span style="font-size:13px;flex:1">${v.title}</span>
-      <span style="font-size:11px;color:var(--muted)">${v.category}</span>
-    </label>`).join('');
+  // Path folder cards
+  const folderCards = paths.length ? paths.map((p,pi) => {
+    const vids = (p.videoIds||[]).map(id=>allVids.find(v=>String(v.id)===String(id))).filter(Boolean);
+    const assignees = (p.assignedTo||[]).map(uid=>users.find(u=>u.id===uid||u.username===uid)).filter(Boolean);
+    return '<div onclick="openPathFolder(\''+p.id+'\')" style="display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--white);border:1.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .2s;margin-bottom:10px" onmouseover="this.style.borderColor=\'var(--green)\';this.style.background=\'var(--green-bg)\'" onmouseleave="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--white)\'">'
+      +'<div style="font-size:28px">📁</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-family:\'Syne\',sans-serif;font-size:14px;font-weight:800;color:var(--text)">'+p.name+'</div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:2px">'+vids.length+' video'+(vids.length!==1?'s':'')+(p.desc?' · '+p.desc:'')+(assignees.length?' · 👥 '+assignees.length+' assigned':'')+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px" onclick="event.stopPropagation()">'
+      +'<button onclick="openAssignPathModal(\''+p.id+'\')" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green);border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">👥 Assign</button>'
+      +'<button onclick="deletePath('+pi+')" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer">🗑</button>'
+      +'</div>'
+      +'</div>';
+  }).join('') : '<div style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No training paths yet.</div>';
 
-  return `
-  <div class="acard">
-    <div class="acard-title">Training Paths (${paths.length})</div>
-    ${pathCards}
-  </div>
-  <div class="acard">
-    <div class="acard-title">Create New Path</div>
-    <div class="form-grid">
-      <div class="ff"><label>Path Name</label><input type="text" id="path-name" placeholder="e.g. New Hire Onboarding"/></div>
-      <div class="ff"><label>Icon (emoji)</label><input type="text" id="path-icon" placeholder="X" maxlength="2" style="font-size:20px"/></div>
-      <div class="ff full"><label>Description</label><input type="text" id="path-desc" placeholder="Short description..."/></div>
-      <div class="ff full">
-        <label>Select Videos (in order)</label>
-        <div style="border:1.5px solid var(--border);border-radius:10px;max-height:260px;overflow-y:auto;padding:4px">${videoCheckboxes}</div>
-      </div>
-    </div>
-    <button class="btn-green-lg" onclick="addPath()">Create Path</button>
-  </div>`;
+  // Video filter + checkboxes for create form
+  const cats = [...new Set(allVids.map(v=>v.category))].sort();
+  const catOpts = cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+
+  const videoList = allVids.map(v =>
+    '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--green-bg)\'" onmouseleave="this.style.background=\'\'">'
+    +'<input type="checkbox" class="path-vid-cb" value="'+v.id+'" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/>'
+    +'<span style="font-size:13px;flex:1;font-weight:500">'+v.title+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+v.category+'</span>'
+    +'</label>'
+  ).join('');
+
+  return '<div class="acard" style="margin-bottom:16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
+    +'<div class="acard-title" style="margin:0">Training Paths ('+paths.length+')</div>'
+    +'</div>'
+    +folderCards
+    +'</div>'
+    +'<div class="acard">'
+    +'<div class="acard-title">Create New Path</div>'
+    +'<div class="form-grid">'
+    +'<div class="ff"><label>Path Name</label><input type="text" id="path-name" placeholder="e.g. New Hire Onboarding"/></div>'
+    +'<div class="ff"><label>Description (optional)</label><input type="text" id="path-desc" placeholder="Short description"/></div>'
+    +'<div class="ff full">'
+    +'<label style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<span>Select Videos</span>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<input type="text" id="path-vid-search" placeholder="🔍 Search..." oninput="filterPathVids(this.value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg);color:var(--text);outline:none;width:160px"/>'
+    +'<select id="path-cat-filter" onchange="filterPathVids(document.getElementById(\'path-vid-search\').value)" style="padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg);color:var(--text);outline:none"><option value="">All Categories</option>'+catOpts+'</select>'
+    +'</div>'
+    +'</label>'
+    +'<div id="path-vid-list" style="border:1.5px solid var(--border);border-radius:10px;max-height:240px;overflow-y:auto;padding:6px">'
+    +videoList
+    +'</div>'
+    +'</div>'
+    +'</div>'
+    +'<button class="btn-green-lg" onclick="addPath()">📁 Create Path</button>'
+    +'</div>';
 }
 
-function addPath(){
-  const name=document.getElementById('path-name')?.value.trim();
-  if(!name){showToast('Enter a path name');return;}
-  const icon=document.getElementById('path-icon')?.value.trim()||'X';
-  const desc=document.getElementById('path-desc')?.value.trim()||'';
-  const cbs=[...document.querySelectorAll('.path-vid-cb:checked')];
-  const videoIds=cbs.map(cb=>cb.value);
-  if(!videoIds.length){showToast('Select at least one video');return;}
-  const paths=getPaths();
-  paths.push({id:'path_'+Date.now(),name,icon,desc,videoIds});
-  savePaths(paths);showToast(`Path "${name}" created!`);renderManage();
+function filterPathVids(q) {
+  const catF = document.getElementById('path-cat-filter')?.value || '';
+  const sq = (q||'').toLowerCase();
+  document.querySelectorAll('#path-vid-list label').forEach(label => {
+    const title = label.querySelector('span')?.textContent?.toLowerCase()||'';
+    const cat = label.querySelectorAll('span')[1]?.textContent||'';
+    const show = (!sq || title.includes(sq)) && (!catF || cat === catF);
+    label.style.display = show ? '' : 'none';
+  });
 }
+
+function openPathFolder(pathId) {
+  const paths = getPaths();
+  const p = paths.find(x=>x.id===pathId);
+  if (!p) return;
+  const allVids = videos.filter(v=>!isExpired(v)&&!v.archived);
+  const vids = (p.videoIds||[]).map(id=>allVids.find(v=>String(v.id)===String(id))).filter(Boolean);
+  const users = allUsers().filter(u=>!u.inactive);
+  const assignees = (p.assignedTo||[]).map(uid=>users.find(u=>u.id===uid||u.username===uid)).filter(Boolean);
+
+  const vidRows = vids.map((v,i) =>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:var(--bg);margin-bottom:8px;cursor:pointer" onclick="openModal(\''+v.id+'\')">'
+    +'<div style="width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">'+(i+1)+'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">'+v.title+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">'+v.category+(v.duration?' · '+v.duration:'')+'</div></div>'
+    +'<div style="font-size:11px;color:var(--green);font-weight:700">▶ Watch</div>'
+    +'</div>'
+  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:16px;text-align:center">No videos in this path.</div>';
+
+  const assigneeList = assignees.length
+    ? assignees.map(u=>'<span style="background:var(--green-bg);color:var(--green);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600">'+u.name+'</span>').join(' ')
+    : '<span style="color:var(--muted);font-size:12px">Not assigned to anyone yet</span>';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'path-folder-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:560px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:20px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:12px">'
+    +'<div style="font-size:28px">📁</div>'
+    +'<div style="flex:1"><div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">'+p.name+'</div>'
+    +'<div style="font-size:12px;color:var(--muted)">'+vids.length+' videos</div></div>'
+    +'<button onclick="document.getElementById(\'path-folder-overlay\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;line-height:1">×</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Videos</div>'
+    +vidRows
+    +'<div style="margin-top:16px;padding-top:16px;border-top:1.5px solid var(--border)">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Assigned To</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px">'+assigneeList+'</div>'
+    +'</div></div>'
+    +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
+    +'<button onclick="openAssignPathModal(\''+p.id+'\');document.getElementById(\'path-folder-overlay\').remove()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-family:Syne,sans-serif;font-weight:700;font-size:13px;cursor:pointer">👥 Assign to Users</button>'
+    +'<button onclick="document.getElementById(\'path-folder-overlay\').remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 16px;cursor:pointer;font-size:13px">Close</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function openAssignPathModal(pathId) {
+  const paths = getPaths();
+  const p = paths.find(x=>x.id===pathId);
+  if (!p) return;
+  const users = allUsers().filter(u=>!u.inactive&&u.role!=='admin');
+  const assigned = new Set(p.assignedTo||[]);
+
+  const userRows = users.map(u => {
+    const uid = u.id||u.username;
+    return '<label style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:9px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--green-bg)\'" onmouseleave="this.style.background=\'\'">'
+      +'<input type="checkbox" class="assign-user-cb" value="'+uid+'" '+(assigned.has(uid)?'checked':'')+' style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>'
+      +'<div style="flex:1"><div style="font-size:13px;font-weight:600">'+u.name+'</div>'
+      +'<div style="font-size:11px;color:var(--muted)">'+( u.market||'')+(u.role?' · '+u.role:'')+'</div></div>'
+      +'</label>';
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'assign-path-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:440px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:18px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<div style="font-family:Syne,sans-serif;font-size:15px;font-weight:800">Assign: '+p.name+'</div>'
+    +'<button onclick="document.getElementById(\'assign-path-overlay\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
+    +'</div>'
+    +'<div style="padding:12px 16px;border-bottom:1.5px solid var(--border)">'
+    +'<input type="text" placeholder="🔍 Filter users..." oninput="this.nextElementSibling.querySelectorAll(\'label\').forEach(l=>{l.style.display=l.textContent.toLowerCase().includes(this.value.toLowerCase())?\'\':\'none\'})" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<div style="max-height:280px;overflow-y:auto;margin-top:8px">'+userRows+'</div>'
+    +'</div>'
+    +'<div style="padding:16px 24px;display:flex;gap:8px">'
+    +'<button onclick="savePathAssignment(\''+pathId+'\')" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 20px;font-family:Syne,sans-serif;font-weight:700;font-size:13px;cursor:pointer;flex:1">Save Assignment</button>'
+    +'<button onclick="document.getElementById(\'assign-path-overlay\').remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 14px;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function savePathAssignment(pathId) {
+  const paths = getPaths();
+  const p = paths.find(x=>x.id===pathId);
+  if (!p) return;
+  const checked = [...document.querySelectorAll('.assign-user-cb:checked')].map(cb=>cb.value);
+  p.assignedTo = checked;
+  savePaths(paths);
+  document.getElementById('assign-path-overlay')?.remove();
+  showToast('✅ Assigned to '+checked.length+' user'+(checked.length!==1?'s':''));
+  renderManage();
+}
+
 function deletePath(idx){
+
   if(!confirm('Delete this path?'))return;
   const paths=getPaths();paths.splice(idx,1);savePaths(paths);renderManage();
 }
@@ -5934,33 +6144,37 @@ function markNotifRead(id) {
 
 // User edit modal (team management)
 // editingUserId declared above
-function openUserEditModal(username) {
-  editingUserId = username;
-  const u = _dbUsers.find(function(x) { return (x.username||x.id) === username; });
-  if (!u) return;
-  const marketOpts = MARKETS.map(function(m) {
-    return '<option value="' + m + '" ' + (u.market===m?'selected':'') + '>' + m + '</option>';
-  }).join('');
+function openUserEditModal(uid) {
+  const u = _dbUsers.find(x => x.id === uid || x.username === uid);
+  if (!u) { showToast('User not found'); return; }
+  editingUserId = u.id || u.username;
+  const marketOpts = MARKETS.map(m =>
+    '<option value="'+m+'" '+(u.market===m?'selected':'')+'>'+m+'</option>'
+  ).join('');
+  const existing = document.getElementById('user-edit-overlay');
+  if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'user-edit-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
-  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:460px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.35)">' +
-    '<div style="padding:20px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
-    '<div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">Edit: ' + u.name + '</div>' +
-    '<button onclick="closeUserEditModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px">✕</button></div>' +
-    '<div style="padding:20px 24px" class="form-grid">' +
-    '<div class="ff"><label>Full Name</label><input type="text" id="edit-user-name" value="' + u.name + '"/></div>' +
-    '<div class="ff"><label>Email</label><input type="email" id="edit-user-email" value="' + (u.email||'') + '"/></div>' +
-    '<div class="ff"><label>Password</label><input type="text" id="edit-user-pass" value="' + (u.pass||'') + '"/></div>' +
-    '<div class="ff"><label>Market</label><select id="edit-user-market"><option value="">— None —</option>' + marketOpts + '</select></div>' +
-    '<div class="ff"><label>Role</label><select id="edit-user-role">' +
-    ['member','manager','admin'].map(function(r) { return '<option value="' + r + '" ' + (u.role===r?'selected':'') + '>' + r + '</option>'; }).join('') +
-    '</select></div>' +
-    '</div>' +
-    '<div style="padding:0 24px 20px;display:flex;gap:10px">' +
-    '<button onclick="saveUserEdit()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:11px;font-family:Syne,sans-serif;font-size:14px;font-weight:800;cursor:pointer;flex:1">Save Changes</button>' +
-    '<button onclick="closeUserEditModal()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:11px 20px;cursor:pointer">Cancel</button>' +
-    '</div></div>';
+  overlay.innerHTML =
+    '<div style="background:var(--white);border-radius:16px;width:100%;max-width:480px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:20px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">Edit: '+u.name+'</div>'
+    +'<button onclick="closeUserEditModal()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1">×</button>'
+    +'</div>'
+    +'<div style="padding:20px 24px" class="form-grid">'
+    +'<div class="ff"><label>Full Name</label><input type="text" id="edit-user-name" value="'+( u.name||'')+'"/></div>'
+    +'<div class="ff"><label>Email</label><input type="email" id="edit-user-email" value="'+(u.email||'')+'"/></div>'
+    +'<div class="ff"><label>Password</label><input type="text" id="edit-user-pass" value="'+(u.pass||'')+'"/></div>'
+    +'<div class="ff"><label>Market</label><select id="edit-user-market"><option value="">— None —</option>'+marketOpts+'</select></div>'
+    +'<div class="ff"><label>Role</label><select id="edit-user-role">'
+    +['member','manager','admin'].map(r=>'<option value="'+r+'" '+(u.role===r?'selected':'')+'>'+r+'</option>').join('')
+    +'</select></div>'
+    +'</div>'
+    +'<div style="padding:0 24px 20px;display:flex;gap:10px">'
+    +'<button onclick="saveUserEdit()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:Syne,sans-serif;font-weight:700;cursor:pointer;font-size:14px">Save Changes</button>'
+    +'<button onclick="closeUserEditModal()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 18px;cursor:pointer;font-size:14px">Cancel</button>'
+    +'</div></div>';
   document.body.appendChild(overlay);
 }
 function closeUserEditModal() {
