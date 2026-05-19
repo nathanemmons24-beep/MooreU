@@ -434,7 +434,138 @@
   @media(max-width:700px){
     /* ── Layout ── */
     .sidebar{display:none!important}
-    .sidebar.mob-open{display:flex!important;position:fixed;top:0;left:0;height:100vh;z-index:160;padding-top:64px;animation:slideDown .25s ease;width:72vw;max-width:280px;box-shadow:6px 0 24px rgba(0,0,0,.25);background:var(--near-black)!important;}
+    .sidebar.mob-open{display:flex!important;position:fixed;top:0;left:0;height:100vh;z-index:160;padding-top:0;width:260px;}
+    .mob-open .sb-label{font-size:10px;letter-spacing:.12em;padding:18px 20px 6px;color:rgba(255,255,255,.35);}
+    .mob-open .nav-item{font-size:15px;font-weight:600;padding:13px 20px;color:rgba(255,255,255,.75);border-left:3px solid transparent;}
+    .mob-open .nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+    .mob-open .nav-item.active{color:var(--green-light);border-left-color:var(--green-light);background:rgba(74,124,63,.15);}
+    .mob-open .nav-div{border-color:rgba(255,255,255,.08);margin:4px 0;}
+    .mob-open .cat-nav-item{font-size:14px;padding:10px 20px 10px 24px;color:rgba(255,255,255,.6);cursor:pointer;}
+    .mob-open .cat-nav-item:hover{color:#fff;background:rgba(255,255,255,.04);}
+    .mob-only{display:flex!important}
+    .layout{flex-direction:column;}
+    main{overflow-x:hidden;min-height:0;}
+
+    /* ── Topbar ── */
+    .topbar{padding:0 14px;gap:10px;height:52px;}
+    .topbar-logo{font-size:14px;font-family:'Syne',sans-serif;font-weight:800;}
+    .topbar-div{display:none;}
+    .search-wrap{flex:1;max-width:none;}
+    .search-wrap input{font-size:14px;padding:8px 12px 8px 36px;}
+    .session-timer,.unsaved-pill,.save-tb-btn{display:none!important;}
+    #user-name-display{display:none;}
+    .preview-btns{gap:4px;}
+    .preview-role-btn{padding:5px 10px;font-size:11px;}
+    .dark-toggle,.notif-btn{width:32px;height:32px;font-size:15px;}
+    .logout-btn{padding:6px 10px;font-size:12px;}
+
+    /* ── Hero Mosaic — mobile ── */
+    .hero-section{height:260px;}
+    .hero-mosaic-track{gap:8px;padding:8px;}
+    .hero-mosaic-card.tall{width:160px;height:244px;}
+    .hero-mosaic-card.wide{width:220px;height:116px;}
+    .hero-mosaic-card.square{width:140px;height:116px;}
+    .hero-mosaic-col{gap:8px;}
+    .hero-featured-title{font-size:36px;-webkit-text-stroke:1.5px rgba(255,255,255,.8);}
+    .hero-card-title{font-size:11px;}
+    .hero-card-cat{font-size:9px;}
+    .hero-card-info{padding:8px 10px;}
+    .hero-card-play{width:32px;height:32px;}
+    .hero-card-play-tri{border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:10px solid #fff;}
+
+    /* ── Library ── */
+    .lib-body{padding:12px 12px 80px;}
+    .filter-row{gap:6px;padding-bottom:2px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+    .filter-row::-webkit-scrollbar{display:none;}
+    .filter-btn{padding:7px 14px;font-size:13px;white-space:nowrap;flex-shrink:0;}
+    .section-title{font-size:15px;margin:18px 0 10px;}
+    .sec-header{padding:8px 0 6px;}
+    .sec-name{font-size:14px;}
+    .sec-count{font-size:12px;}
+
+    /* ── Video Grid — horizontal carousel ── */
+    .video-grid{display:flex!important;flex-direction:row!important;overflow-x:auto!important;overflow-y:visible!important;gap:10px!important;padding-bottom:8px;scroll-snap-type:x mandatory;}
+    .video-grid::-webkit-scrollbar{display:none;}
+    .video-grid .video-card{min-width:72vw;max-width:72vw;flex-shrink:0;scroll-snap-align:start;}
+    .carousel-btn{display:none;}
+    .vcard-thumb{height:140px;}
+    .vcard-info{padding:10px 12px 12px;}
+    .vcard-title{font-size:13px;}
+    .cat-section{margin-bottom:20px;}
+
+    /* ── Strips ── */
+    .strip-section{padding:0 12px 4px;}
+    .strip-card{width:140px;}
+    .assets-grid{grid-template-columns:1fr 1fr;gap:10px;}
+
+    /* ── Stats & analytics ── */
+    .tasks-stats-row,.analytics-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+    .analytics-two-col{grid-template-columns:1fr;}
+    .stat-card{padding:14px 12px;}
+    .stat-card-value{font-size:24px;}
+    .stat-card-label{font-size:10px;}
+
+    /* ── Tasks ── */
+    .tasks-wrap{padding:16px 12px 80px;}
+    .task-card{flex-direction:column;gap:10px;}
+    .task-actions{flex-direction:row;align-items:center;width:100%;}
+    .task-watch-btn{flex:1;text-align:center;}
+
+    /* ── Manage / Settings ── */
+    .manage-wrap{padding:12px;}
+    .form-grid{grid-template-columns:1fr;}
+    .manage-tabs{flex-wrap:wrap;gap:4px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;}
+    .manage-tabs::-webkit-scrollbar{display:none;}
+    .manage-tab{padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap;flex-shrink:0;}
+    .add-cat-row{flex-direction:column;}
+    .vtable-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .vtable{min-width:500px;}
+    .acard{padding:14px 12px;}
+    .acard-title{font-size:15px;}
+    .team-grid,.cat-grid{grid-template-columns:1fr;}
+    .report-table td,.report-table th{padding:8px 8px;font-size:11px;}
+    .cat-list-row{flex-wrap:wrap;gap:8px;}
+
+    /* ── Modals — slide up from bottom ── */
+    .modal-overlay{align-items:flex-end;padding:0;}
+    .modal{border-radius:18px 18px 0 0!important;position:fixed;bottom:0;left:0;right:0;max-height:92vh;max-width:100%!important;width:100%!important;}
+    .assign-overlay,.edit-overlay,.profile-overlay{align-items:flex-end;padding:0;}
+    .assign-modal,.edit-modal,.profile-modal{border-radius:18px 18px 0 0!important;max-height:90vh;position:fixed;bottom:0;left:0;right:0;}
+    .asset-preview-overlay{align-items:flex-end;padding:0;}
+    .asset-preview-modal{border-radius:18px 18px 0 0!important;position:fixed;bottom:0;left:0;right:0;max-height:92vh;}
+    /* Dynamic modals (assign, paths, etc) */
+    #assign-modal>div,#assign-path-overlay>div,#path-folder-overlay>div,#bulk-assign-modal>div,#user-edit-overlay>div{border-radius:18px 18px 0 0!important;position:fixed!important;bottom:0!important;left:0!important;right:0!important;top:auto!important;max-width:100%!important;width:100%!important;max-height:90vh;}
+
+    /* Drag pill for modals */
+    .modal::before,.assign-modal::before,.profile-modal::before,.edit-modal::before{content:'';display:block;width:36px;height:4px;background:rgba(0,0,0,.15);border-radius:2px;margin:10px auto 6px;}
+
+    /* ── Profile ── */
+    .profile-header{padding:20px 16px 0;}
+    .profile-stat-row{grid-template-columns:repeat(3,1fr);gap:8px;}
+    .profile-stat{padding:10px 8px;}
+    .profile-stat-num{font-size:18px;}
+    .profile-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .profile-tab{font-size:11px;padding:10px 8px;white-space:nowrap;}
+    .profile-section{padding:14px 12px;}
+
+    /* ── Notifications ── */
+    .notif-panel{width:calc(100vw - 16px);right:8px;top:58px;max-height:70vh;}
+    .notif-item{padding:11px 14px;}
+
+    /* ── Bulk bar ── */
+    .bulk-bar{min-width:0;width:calc(100vw - 24px);flex-wrap:wrap;gap:8px;padding:10px 12px;border-radius:14px;}
+
+    /* ── Announcement/preview bars ── */
+    .preview-bar{padding:8px 14px;font-size:12px;}
+    .preview-bar-label span:last-of-type{display:none;}
+    .announcement-bar{padding:10px 14px;}
+
+    /* ── Login page ── */
+    .login-box{padding:32px 24px;width:calc(100vw - 32px);}
+    .login-mosaic-card.tall{width:160px;}
+    .login-mosaic-card.wide{width:220px;}
+    .login-mosaic-card.square{width:140px;}
+  }64px;animation:slideDown .25s ease;width:72vw;max-width:280px;box-shadow:6px 0 24px rgba(0,0,0,.25);background:var(--near-black)!important;}
     .mob-open .sb-label{font-size:10px;letter-spacing:.12em;padding:18px 20px 6px;color:rgba(255,255,255,.35);font-weight:800;}
     .mob-open .nav-item{font-size:15px;font-weight:600;padding:13px 20px;color:rgba(255,255,255,.75);border-left:3px solid transparent;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.05);}
     .mob-open .nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
@@ -548,11 +679,17 @@
   }
 
   @media(max-width:380px){
-    .video-grid{grid-template-columns:1fr;}
+    .video-grid .video-card{min-width:82vw;max-width:82vw;}
     .assets-grid{grid-template-columns:1fr;}
     .tasks-stats-row,.analytics-grid{grid-template-columns:repeat(2,1fr);}
-    .hero-title{font-size:18px;}
+    .hero-section{height:220px;}
+    .hero-mosaic-card.tall{width:130px;height:204px;}
+    .hero-mosaic-card.wide{width:180px;height:96px;}
+    .hero-mosaic-card.square{width:120px;height:96px;}
+    .hero-featured-title{font-size:28px;}
     .topbar-logo{font-size:13px;}
+    .login-box{padding:28px 18px;}
+  }
     .manage-tab{padding:7px 9px;font-size:11px;}
   }
 
@@ -1755,7 +1892,18 @@ function saveTeamUsers() {
 //  DATA PERSISTENCE — handled by Supabase (see saveData above)
 // ===============================================================
 
-// loadData is replaced by syncFromDB — this is a no-op fallback
+// Helper: get video categories as array (supports both string and array)
+function getVidCats(v) {
+  if (!v.category) return [];
+  return Array.isArray(v.category) ? v.category : [v.category];
+}
+function vidInCat(v, cat) {
+  return getVidCats(v).includes(cat);
+}
+function vidPrimaryCategory(v) {
+  const cats = getVidCats(v);
+  return cats[0] || '';
+}
 function loadData() {
   // Data is loaded from Supabase in syncFromDB() after login.
   // If Supabase has no videos yet, fall back to empty.
@@ -3201,8 +3349,8 @@ function renderHome() {
   const filtered = videos.filter(v => {
     if (!videoVisible(v)) return false;  // hide expired + scheduled
     if (cats[v.category]?.archived) return false;  // hide archived category
-    const catVisible = vcats.includes(v.category);
-    const mc = activeFilter === 'All' ? catVisible : v.category === activeFilter;
+    const catVisible = getVidCats(v).some(c => vcats.includes(c));
+    const mc = activeFilter === 'All' ? catVisible : vidInCat(v, activeFilter);
     const mq = !searchQuery || [v.title, v.category, v.desc, ...(v.tags||[])].join(' ').toLowerCase().includes(searchQuery);
     return mc && mq;
   });
@@ -3214,7 +3362,12 @@ function renderHome() {
     html = `<div class="no-results"><div class="icon">🎬</div><p>No resources match your search.</p></div>`;
   } else {
     const byCat = {};
-    filtered.forEach(v => { if (!byCat[v.category]) byCat[v.category]=[]; byCat[v.category].push(v); });
+    filtered.forEach(v => {
+      getVidCats(v).forEach(cat => {
+        if (!byCat[cat]) byCat[cat] = [];
+        byCat[cat].push(v);
+      });
+    });
     html = Object.entries(byCat).map(([cat, vids]) => {
       const m = cats[cat]||{icon:'📁',color:'#4a7c3f',bg:'rgba(74,124,63,.12)',gradient:'#1a2e18,#0f1f0d'};
       const catId = 'grid-' + cat.replace(/[^a-zA-Z0-9]/g,'-');
@@ -3556,17 +3709,19 @@ function renderVideosPanel() {
     <div class="acard-title">Add New Resource</div>
     <div class="form-grid">
       <div class="ff"><label>Title</label><input type="text" id="new-title" placeholder="e.g. Q2 Office Hours Recap"/></div>
-      <div class="ff">
-        <label>Category</label>
-        <select id="new-cat" onchange="handleCatSelect(this.value)">
-          ${catOptsNew}
-          <option value="__new__">+ Create New Category...</option>
-        </select>
-        <div id="new-cat-inline" style="display:none;margin-top:8px">
-          <input type="text" id="new-cat-name-inline" placeholder="New category name..." style="width:100%;background:var(--bg);border:1.5px solid var(--green);border-radius:9px;padding:10px 13px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none"/>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Category will be created when you add the video.</div>
-        </div>
-      </div>
+      '<div class="ff">'+
+      '<label>Categories <span style="font-weight:400;color:#aaa">(select one or more)</span></label>'+
+      '<div style="border:1.5px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;padding:6px">'+
+      Object.keys(cats).filter(c=>!cats[c]?.archived).map(c=>
+        '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer" onmouseover="this.style.background=\'var(--green-bg)\'" onmouseleave="this.style.background=\'\'">'+
+        '<input type="checkbox" class="new-cat-cb" value="'+c+'" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/>'+
+        '<span style="font-size:13px">'+(cats[c]?.icon||'📁')+' '+c+'</span></label>'
+      ).join('')+
+      '</div>'+
+      '<div style="margin-top:6px"><button type="button" onclick="toggleNewCatInline()" style="background:none;border:none;color:var(--green);font-size:12px;font-weight:700;cursor:pointer;padding:0">+ Create New Category</button>'+
+      '<div id="new-cat-inline" style="display:none;margin-top:8px"><input type="text" id="new-cat-name-inline" placeholder="New category name..." style="width:100%;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--text);outline:none"/></div>'+
+      '</div>'+
+      '</div>'+
       <div class="ff"><label>Video URL <span style="font-weight:400;color:#aaa">(YouTube, Vimeo, Loom, or .mp4)</span></label>
         <input type="text" id="new-url" placeholder="https://www.youtube.com/watch?v=..." oninput="clearTimeout(window._urlDebounce);window._urlDebounce=setTimeout(()=>autoDetectFromUrl(this.value),800)" onblur="autoDetectFromUrl(this.value)"/></div>
       <div class="ff"><label>Duration <span style="font-weight:400;color:#aaa" id="dur-status"> — auto-detected from URL</span></label>
@@ -4121,11 +4276,29 @@ function handleThumbUpload(e){
 }
 
 let _addingVideo = false;
+function toggleNewCatInline() {
+  const el = document.getElementById('new-cat-inline');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 function addVideo(){
   if(_addingVideo){ showToast('Already saving, please wait...'); return; }
 
   const title=document.getElementById('new-title')?.value.trim();
-  let cat=document.getElementById('new-cat')?.value;
+  // Read selected categories from checkboxes
+  const selectedCats = [...document.querySelectorAll('.new-cat-cb:checked')].map(cb=>cb.value);
+  // Handle new category creation
+  const newCatName = document.getElementById('new-cat-name-inline')?.value.trim();
+  if(newCatName && !cats[newCatName]) {
+    const idx=Object.keys(cats).length%6;
+    const colors=['#4a7c3f','#1a5276','#7c3aed','#c0392b','#b45309','#2c5f1a'];
+    cats[newCatName]={icon:selectedEmoji||'📁',color:colors[idx],bg:colors[idx]+'22',gradient:'#1a1a1a,#2a2a2a'};
+    selectedCats.push(newCatName);
+    showToast(`Category "${newCatName}" created!`);
+  }
+  if(!title){ showToast('Enter a video title'); return; }
+  if(!selectedCats.length){ showToast('Select at least one category'); return; }
+
   const dur=document.getElementById('new-dur')?.value.trim()||'0:00';
   const url=document.getElementById('new-url')?.value.trim()||'';
   const desc=document.getElementById('new-desc')?.value.trim()||'';
@@ -4133,22 +4306,6 @@ function addVideo(){
   const expires=document.getElementById('new-expires')?.value||'';
   const required=document.getElementById('new-required')?.checked||false;
 
-  // Validate BEFORE setting the lock
-  if(!title){ showToast('Enter a video title'); return; }
-  if(cat==='__new__'){
-    const newCatName=document.getElementById('new-cat-name-inline')?.value.trim();
-    if(!newCatName){ showToast('Enter a name for the new category'); return; }
-    if(!cats[newCatName]){
-      const idx=Object.keys(cats).length%6;
-      const colors=['#4a7c3f','#1a5276','#7c3aed','#c0392b','#b45309','#2c5f1a'];
-      cats[newCatName]={icon:selectedEmoji||'📁',color:colors[idx],bg:colors[idx]+'22',gradient:'#1a1a1a,#2a2a2a'};
-      showToast(`Category "${newCatName}" created!`);
-    }
-    cat=newCatName;
-  }
-  if(!cat||!cats[cat]){ showToast('Select or create a category'); return; }
-
-  // All validation passed — now lock
   _addingVideo = true;
 
   const tags=tagsRaw.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
@@ -4156,12 +4313,13 @@ function addVideo(){
   const newId='vid_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   const publishAt=document.getElementById('new-publish')?.value||'';
   const quiz=document.getElementById('new-has-quiz')?.checked?collectQuizData('new'):[];
+  // Store as array for multi-cat, or string for backward compat with single
+  const catVal = selectedCats.length === 1 ? selectedCats[0] : selectedCats;
 
-  const newVideo = {id:newId,title,category:cat,url,thumb:thumbVal,duration:dur,desc,
+  const newVideo = {id:newId,title,category:catVal,url,thumb:thumbVal,duration:dur,desc,
     files:[...stagedFiles],tags,required,featured:false,expiresAt:expires,publishAt,
     quiz,addedAt:new Date().toISOString(),sortOrder:videos.length};
 
-  // Add to local state
   videos.push(newVideo);
   newThumb='';newThumbUrl='';stagedFiles=[];
 
@@ -4573,8 +4731,11 @@ function renderReportsPanel(){
   }).join('');
 
   return '<div class="acard">'
-    +'<div class="acard-title">Team Completion</div>'
-    +'<div class="acard-sub">Required training progress. Click Assign to assign videos or paths to a user.</div>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<div><div class="acard-title" style="margin:0">Team Completion</div>'
+    +'<div class="acard-sub" style="margin:0">Required training progress. Click Assign to assign to individual users.</div></div>'
+    +'<button onclick="openBulkAssignModal()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:9px 18px;font-family:Syne,sans-serif;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0">👥 Bulk Assign</button>'
+    +'</div>'
     +'<div class="vtable-wrap"><table class="report-table">'
     +'<thead><tr><th>Name</th><th>Market</th><th>Progress</th><th>Actions</th></tr></thead>'
     +'<tbody>'+(rows||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No team members.</td></tr>')+'</tbody>'
@@ -4589,7 +4750,7 @@ function openAssignModal(userId) {
   if (!u) return;
   const allVids = videos.filter(v=>!v.archived&&!isExpired(v));
   const paths = getPaths();
-  const cats = [...new Set(allVids.map(v=>v.category))].sort();
+  const cats_list = [...new Set(allVids.map(v=>vidPrimaryCategory(v)))].filter(Boolean).sort();
   const existing = _cachedAssignments.filter(a=>String(a.userId)===String(userId));
   const existingVidIds = new Set(existing.map(a=>String(a.videoId)));
 
@@ -4597,21 +4758,36 @@ function openAssignModal(userId) {
   const watched = new Set(_cachedAnalytics.filter(e=>(e.type==='view'||e.type==='watch_time')&&String(e.userId)===String(userId)).map(e=>String(e.videoId)));
   const recommended = allVids.filter(v=>v.required&&!watched.has(String(v.id))).slice(0,5);
 
-  const recSection = recommended.length ? '<div style="margin-bottom:16px;padding:12px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px">'
-    +'<div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">⭐ Recommended — Required videos not yet watched</div>'
-    +recommended.map(v=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer">'
-      +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
-      +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
-      +'<span style="font-size:11px;color:var(--green);font-weight:600">Required</span>'
-      +'</label>').join('')
-    +'</div>' : '';
+  const recSection = recommended.length
+    ? '<div style="margin-bottom:14px;padding:12px 14px;background:var(--green-bg);border:1.5px solid var(--green);border-radius:10px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:8px">⭐ Recommended — Required videos not yet watched</div>'
+      +recommended.map(v=>'<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">'
+        +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
+        +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+        +'<span style="font-size:11px;color:var(--green);font-weight:600">Required</span>'
+        +'</label>').join('')
+      +'</div>' : '';
 
-  const catOpts = cats.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+  // Current assignments with remove button
+  const currentSection = existing.length
+    ? '<div style="margin-bottom:14px;padding:12px 14px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Current Assignments</div>'
+      +existing.map(a => {
+        const v = videos.find(x=>String(x.id)===String(a.videoId));
+        return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">'
+          +'<span style="font-size:13px;flex:1;color:var(--text)">'+( v?v.title:'Unknown video')+'</span>'
+          +(a.due?'<span style="font-size:11px;color:var(--muted)">Due: '+a.due+'</span>':'')
+          +'<button onclick="removeAssignment(\''+( a.id||a._id||'')+'\',\''+userId+'\')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;padding:0 4px" title="Remove">✕</button>'
+          +'</div>';
+      }).join('')
+      +'</div>' : '';
+
+  const catOpts = cats_list.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
   const vidList = allVids.map(v=>
-    '<label class="assign-vid-label" data-cat="'+v.category+'" data-title="'+v.title.toLowerCase()+'" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'\'">'
+    '<label class="assign-vid-label" data-cat="'+vidPrimaryCategory(v)+'" data-title="'+v.title.toLowerCase()+'" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'\'">'
     +'<input type="checkbox" class="assign-vid-cb" value="'+v.id+'" '+(existingVidIds.has(String(v.id))?'checked':'')+' style="accent-color:var(--green);cursor:pointer"/>'
     +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
-    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+v.category+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+vidPrimaryCategory(v)+'</span>'
     +'</label>'
   ).join('');
 
@@ -4621,8 +4797,10 @@ function openAssignModal(userId) {
     +'<div style="flex:1"><div style="font-size:13px;font-weight:600">📁 '+p.name+'</div>'
     +'<div style="font-size:11px;color:var(--muted)">'+(p.videoIds||[]).length+' videos'+(p.desc?' · '+p.desc:'')+'</div></div>'
     +'</label>'
-  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">No training paths created yet.</div>';
+  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">No training paths yet.</div>';
 
+  const existing2 = document.getElementById('assign-modal');
+  if (existing2) existing2.remove();
   const overlay = document.createElement('div');
   overlay.id = 'assign-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -4633,17 +4811,20 @@ function openAssignModal(userId) {
     +'<button onclick="document.getElementById(\'assign-modal\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
     +'</div>'
     +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +currentSection
     +recSection
-    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Videos</div>'
-    +'<div style="display:flex;gap:8px;margin-bottom:10px">'
-    +'<input type="text" id="assign-vid-search" placeholder="🔍 Search videos..." oninput="filterAssignVids()" style="flex:1;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Add Videos</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<input type="text" id="assign-vid-search" placeholder="🔍 Search..." oninput="filterAssignVids()" style="flex:1;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
     +'<select id="assign-cat-filter" onchange="filterAssignVids()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"><option value="">All Categories</option>'+catOpts+'</select>'
     +'</div>'
-    +'<div id="assign-vid-list" style="border:1.5px solid var(--border);border-radius:10px;max-height:200px;overflow-y:auto;padding:6px;margin-bottom:16px">'+vidList+'</div>'
-    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Training Paths</div>'
-    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:160px;overflow-y:auto;padding:6px">'+pathList+'</div>'
-    +'<div style="margin-top:14px"><label style="font-size:13px;font-weight:600">Due Date (optional)</label>'
+    +'<div id="assign-vid-list" style="border:1.5px solid var(--border);border-radius:10px;max-height:180px;overflow-y:auto;padding:6px;margin-bottom:14px">'+vidList+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Add Paths</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:140px;overflow-y:auto;padding:6px;margin-bottom:14px">'+pathList+'</div>'
+    +'<div style="display:flex;gap:12px">'
+    +'<div style="flex:1"><label style="font-size:13px;font-weight:600">Due Date</label>'
     +'<input type="date" id="assign-due" style="margin-top:6px;width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/></div>'
+    +'</div>'
     +'</div>'
     +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
     +'<button onclick="saveAssignments(\''+userId+'\')" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:Syne,sans-serif;font-weight:700;font-size:14px;cursor:pointer;flex:1">Save Assignments</button>'
@@ -4651,7 +4832,137 @@ function openAssignModal(userId) {
     +'</div></div>';
   document.body.appendChild(overlay);
 }
+async function removeAssignment(assignId, userId) {
+  if (!confirm('Remove this assignment?')) return;
+  if (assignId) {
+    await DB.del('mhu_assignments', 'id=eq.'+assignId);
+    _cachedAssignments = _cachedAssignments.filter(a=>(a.id||a._id)!==assignId);
+  }
+  showToast('Assignment removed');
+  // Refresh the modal
+  document.getElementById('assign-modal')?.remove();
+  openAssignModal(userId);
+}
 
+function openBulkAssignModal() {
+  const markets = [...new Set(allUsers().filter(u=>!u.inactive&&u.role!=='admin').map(u=>u.market||'').filter(Boolean))].sort();
+  const roles = ['member','manager'];
+  const allVids = videos.filter(v=>!v.archived&&!isExpired(v));
+  const paths = getPaths();
+  const cats_list = [...new Set(allVids.map(v=>vidPrimaryCategory(v)))].filter(Boolean).sort();
+  const catOpts = cats_list.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+
+  const vidList = allVids.map(v=>
+    '<label class="bulk-assign-vid-label" data-cat="'+vidPrimaryCategory(v)+'" data-title="'+v.title.toLowerCase()+'" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'\'">'
+    +'<input type="checkbox" class="bulk-assign-vid-cb" value="'+v.id+'" style="accent-color:var(--green);cursor:pointer"/>'
+    +'<span style="font-size:13px;flex:1">'+v.title+'</span>'
+    +'<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:10px">'+vidPrimaryCategory(v)+'</span>'
+    +'</label>'
+  ).join('');
+
+  const pathList = paths.map(p=>
+    '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background .15s" onmouseover="this.style.background=\'var(--bg)\'" onmouseleave="this.style.background=\'\'">'
+    +'<input type="checkbox" class="bulk-assign-path-cb" value="'+p.id+'" style="accent-color:var(--green);cursor:pointer"/>'
+    +'<div style="flex:1"><div style="font-size:13px;font-weight:600">📁 '+p.name+'</div>'
+    +'<div style="font-size:11px;color:var(--muted)">'+(p.videoIds||[]).length+' videos</div></div>'
+    +'</label>'
+  ).join('') || '<div style="color:var(--muted);font-size:13px;padding:8px">No paths yet.</div>';
+
+  const existing3 = document.getElementById('bulk-assign-modal');
+  if (existing3) existing3.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'bulk-assign-modal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = '<div style="background:var(--white);border-radius:16px;width:100%;max-width:620px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4)">'
+    +'<div style="padding:18px 24px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +'<div style="font-family:Syne,sans-serif;font-size:16px;font-weight:800">Bulk Assign Training</div>'
+    +'<button onclick="document.getElementById(\'bulk-assign-modal\').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px">×</button>'
+    +'</div>'
+    +'<div style="overflow-y:auto;flex:1;padding:20px 24px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Assign To</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+    +'<button onclick="toggleBulkAll()" style="background:var(--green-bg);color:var(--green);border:1.5px solid var(--green);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer">All Users</button>'
+    +markets.map(m=>'<button onclick="toggleBulkMarket(\''+m+'\')" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">'+m+'</button>').join('')
+    +roles.map(r=>'<button onclick="toggleBulkRole(\''+r+'\')" style="background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;text-transform:capitalize">'+r+'s</button>').join('')
+    +'</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;padding:6px;margin-bottom:14px">'
+    +allUsers().filter(u=>!u.inactive&&u.role!=='admin').map(u=>
+      '<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background .15s" data-market="'+(u.market||'')+'" data-role="'+(u.role||'')+'" onmouseover="this.style.background=\'var(--green-bg)\'" onmouseleave="this.style.background=\'\'">'
+      +'<input type="checkbox" class="bulk-user-cb" value="'+(u.id||u.username)+'" style="accent-color:var(--green);cursor:pointer"/>'
+      +'<span style="font-size:13px;flex:1">'+u.name+'</span>'
+      +'<span style="font-size:11px;color:var(--muted)">'+( u.market||'')+' · '+(u.role||'')+'</span>'
+      +'</label>'
+    ).join('')
+    +'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Videos</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:8px">'
+    +'<input type="text" placeholder="🔍 Search videos..." oninput="document.querySelectorAll(\'.bulk-assign-vid-label\').forEach(l=>l.style.display=l.dataset.title.includes(this.value.toLowerCase())?\'\':\'none\')" style="flex:1;padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/>'
+    +'<select onchange="const v=this.value;document.querySelectorAll(\'.bulk-assign-vid-label\').forEach(l=>l.style.display=(!v||l.dataset.cat===v)?\'\':\'none\')" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"><option value="">All</option>'+catOpts+'</select>'
+    +'</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:160px;overflow-y:auto;padding:6px;margin-bottom:14px">'+vidList+'</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Paths</div>'
+    +'<div style="border:1.5px solid var(--border);border-radius:10px;max-height:120px;overflow-y:auto;padding:6px;margin-bottom:14px">'+pathList+'</div>'
+    +'<div><label style="font-size:13px;font-weight:600">Due Date (optional)</label>'
+    +'<input type="date" id="bulk-assign-due" style="margin-top:6px;width:100%;box-sizing:border-box;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--bg);color:var(--text);outline:none"/></div>'
+    +'</div>'
+    +'<div style="padding:16px 24px;border-top:1.5px solid var(--border);display:flex;gap:8px">'
+    +'<button onclick="saveBulkAssignments()" style="background:var(--green);color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:Syne,sans-serif;font-weight:700;font-size:14px;cursor:pointer;flex:1">Assign to Selected Users</button>'
+    +'<button onclick="document.getElementById(\'bulk-assign-modal\').remove()" style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:9px;padding:10px 16px;cursor:pointer">Cancel</button>'
+    +'</div></div>';
+  document.body.appendChild(overlay);
+}
+
+function toggleBulkAll() {
+  const cbs = document.querySelectorAll('.bulk-user-cb');
+  const allChecked = [...cbs].every(cb=>cb.checked);
+  cbs.forEach(cb=>cb.checked=!allChecked);
+}
+function toggleBulkMarket(market) {
+  document.querySelectorAll('.bulk-user-cb').forEach(cb=>{
+    const lbl = cb.closest('label');
+    if(lbl?.dataset.market===market) cb.checked=!cb.checked;
+  });
+}
+function toggleBulkRole(role) {
+  document.querySelectorAll('.bulk-user-cb').forEach(cb=>{
+    const lbl = cb.closest('label');
+    if(lbl?.dataset.role===role) cb.checked=!cb.checked;
+  });
+}
+
+async function saveBulkAssignments() {
+  const userIds = [...document.querySelectorAll('.bulk-user-cb:checked')].map(cb=>cb.value);
+  const vidIds  = [...document.querySelectorAll('.bulk-assign-vid-cb:checked')].map(cb=>cb.value);
+  const pathIds = [...document.querySelectorAll('.bulk-assign-path-cb:checked')].map(cb=>cb.value);
+  const due     = document.getElementById('bulk-assign-due')?.value||'';
+  if(!userIds.length){showToast('Select at least one user');return;}
+  if(!vidIds.length&&!pathIds.length){showToast('Select at least one video or path');return;}
+
+  let count=0;
+  for(const uid of userIds){
+    for(const vid of vidIds){
+      const already=_cachedAssignments.some(a=>String(a.userId)===String(uid)&&String(a.videoId)===String(vid));
+      if(!already){
+        await DB.post('mhu_assignments',{user_id:uid,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:''});
+        count++;
+      }
+    }
+    for(const pid of pathIds){
+      const p=getPaths().find(x=>x.id===pid);
+      if(!p)continue;
+      for(const vid of (p.videoIds||[])){
+        const already=_cachedAssignments.some(a=>String(a.userId)===String(uid)&&String(a.videoId)===String(vid));
+        if(!already){
+          await DB.post('mhu_assignments',{user_id:uid,video_id:vid,assigned_by:currentUser?.id,due_date:due||null,notes:'Path: '+p.name});
+          count++;
+        }
+      }
+    }
+  }
+  document.getElementById('bulk-assign-modal')?.remove();
+  showToast('✅ Assigned '+count+' item'+(count!==1?'s':'')+' to '+userIds.length+' user'+(userIds.length!==1?'s':''));
+  renderManage();
+}
 function filterAssignVids() {
   const q = (document.getElementById('assign-vid-search')?.value||'').toLowerCase();
   const cat = document.getElementById('assign-cat-filter')?.value||'';
