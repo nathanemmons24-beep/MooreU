@@ -6462,14 +6462,7 @@ window.addEventListener('unhandledrejection', function(e) {
 });
 
 
-// ── Performance: throttle renderManage to avoid rapid re-renders ──
-let _renderManagePending = false;
-const _origRenderManage = renderManage;
-function renderManage() {
-  if (_renderManagePending) return;
-  _renderManagePending = true;
-  requestAnimationFrame(() => { _renderManagePending = false; _origRenderManage(); });
-}
+// renderManage throttle removed — was blocking tab switches
 
 window.onload = async () => {
   activeFilter='All'; searchQuery='';
