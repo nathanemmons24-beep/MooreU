@@ -3583,6 +3583,12 @@ function renderVideosPanel() {
   const activeVideos = videos.filter(v => !v.archived);
   const allIds = activeVideos.map(v=>v.id);
   const allChecked = allIds.length>0 && allIds.every(id=>selectedIds.has(id));
+  if(_videoSearch){const q=_videoSearch.toLowerCase();const filtered2=activeVideos.filter(v=>v.title.toLowerCase().includes(q)||getVidCats(v).join(' ').toLowerCase().includes(q));_videoPage=0;}
+  const PAGE_SIZE=15;
+  const filteredVids=_videoSearch?activeVideos.filter(v=>v.title.toLowerCase().includes(_videoSearch.toLowerCase())||getVidCats(v).join(' ').toLowerCase().includes(_videoSearch.toLowerCase())):activeVideos;
+  const totalPages=Math.ceil(filteredVids.length/PAGE_SIZE);
+  if(_videoPage>=totalPages)_videoPage=0;
+  const pageVids=filteredVids.slice(_videoPage*PAGE_SIZE,(_videoPage+1)*PAGE_SIZE);
   const rows = pageVids.map(v => {
     const t=bestThumb(v); const catM=cats[v.category]||{gradient:'#1a1a1a,#2a2a2a',icon:'X'};
     const tc = t ? `<img src="${t}" onerror="this.style.display='none'">` : `<div class="nth" style="background:linear-gradient(135deg,${catM.gradient})">${catM.icon}</div>`;
@@ -3629,12 +3635,6 @@ function renderVideosPanel() {
   // Build category checkboxes for add-video form
   const catCheckboxHtml = Object.keys(cats).filter(c=>!cats[c]?.archived).map(c=>'<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer"><input type="checkbox" class="new-cat-cb" value="'+c+'" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer"/><span style="font-size:13px">'+(cats[c]?.icon||'📁')+' '+c+'</span></label>').join('');
   const catCheckboxWrap = '<div style="border:1.5px solid var(--border);border-radius:10px;max-height:150px;overflow-y:auto;padding:6px">'+catCheckboxHtml+'</div>';
-  if(_videoSearch){const q=_videoSearch.toLowerCase();const filtered2=activeVideos.filter(v=>v.title.toLowerCase().includes(q)||getVidCats(v).join(' ').toLowerCase().includes(q));_videoPage=0;}
-  const PAGE_SIZE=15;
-  const filteredVids=_videoSearch?activeVideos.filter(v=>v.title.toLowerCase().includes(_videoSearch.toLowerCase())||getVidCats(v).join(' ').toLowerCase().includes(_videoSearch.toLowerCase())):activeVideos;
-  const totalPages=Math.ceil(filteredVids.length/PAGE_SIZE);
-  if(_videoPage>=totalPages)_videoPage=0;
-  const pageVids=filteredVids.slice(_videoPage*PAGE_SIZE,(_videoPage+1)*PAGE_SIZE);
   return `
   <div class="acard">
     <div class="acard-title">Add New Resource</div>
