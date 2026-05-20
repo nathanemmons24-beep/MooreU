@@ -1644,7 +1644,7 @@ const PATHS_KEY     = 'mhu_paths';
 const RATINGS_KEY   = 'mhu_ratings';
 const NOTES_KEY     = 'mhu_video_notes';
 const SCHEDULE_KEY  = 'mhu_schedule';
-const SESSION_TTL  = 20 * 60 * 1000;
+const SESSION_TTL  = 4 * 60 * 60 * 1000; // 4 hours
 
 // ── Seed demo analytics data ────────────────────────────────────
 function seedDemoAnalytics() {
@@ -1881,6 +1881,23 @@ function updateSessionTimerDisplay() {
     const mins = Math.max(0, Math.ceil((s.expires - Date.now()) / 60000));
     el.textContent = `⏱ ${mins}m`; el.classList.add('on');
   } catch(e) {}
+}
+
+
+// ── Video playback session heartbeat ─────────────────────────────
+// Resets session timer while a video is actively playing
+let _videoHeartbeat = null;
+function startVideoHeartbeat() {
+  stopVideoHeartbeat();
+  _videoHeartbeat = setInterval(() => {
+    if (currentUser) {
+      touchSession();
+      resetActivityTimer();
+    }
+  }, 2 * 60 * 1000); // touch every 2 minutes during playback
+}
+function stopVideoHeartbeat() {
+  if (_videoHeartbeat) { clearInterval(_videoHeartbeat); _videoHeartbeat = null; }
 }
 
 function resetActivityTimer() {
@@ -5790,9 +5807,11 @@ function openModal(id) {
   }
 
   document.getElementById('modal').style.display = 'flex';
+  startVideoHeartbeat(); // keep session alive during playback
 }
 
 function closeModal(e) {
+  stopVideoHeartbeat();
   if (!e || e.target === document.getElementById('modal')) {
     flushWatchTime();
     clearInterval(_ytTrackInterval);
