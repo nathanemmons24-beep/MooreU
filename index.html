@@ -1241,7 +1241,7 @@ async function syncFromDB(){
     // Videos + Files
     try {
       const vData=_settled(_fetches[2]), fData=_settled(_fetches[3]);
-      const deletedIds=new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
+      const deletedIds=new Set(safeJSON(localStorage.getItem('mhu_deleted_ids'), []));
       if(vData.length){
         videos=vData.filter(v=>!deletedIds.has(String(v.id))).map(v=>({
           id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
@@ -1251,7 +1251,7 @@ async function syncFromDB(){
           files:fData.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label||f.name,url:f.url,type:f.file_type||'video'}))
         }));
       } else {
-        const d2=new Set(JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]'));
+        const d2=new Set(safeJSON(localStorage.getItem('mhu_deleted_ids'), []));
         videos=clone(DEFAULT_VIDEOS).map(v=>({...v,featured:false})).filter(v=>!d2.has(String(v.id)));
         [0,1,2].forEach(i=>{if(videos[i])videos[i].featured=true;});
       }
@@ -1316,18 +1316,43 @@ async function syncFromDB(){
 
 // ── Performance: localStorage cache for instant repeat visits ────
 const CACHE_KEY = 'mhu_cache_v1';
+
+// ── Startup: clear any corrupted localStorage keys ───────────────
+(function(){
+  const keys = ['mhu_cache_v1','mhu_paths','mhu_analytics','mhu_folders','mhu_deleted_ids'];
+  keys.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v) {
+      try { JSON.parse(v); }
+      catch(e) {
+        console.warn('Clearing corrupted localStorage key:', k);
+        localStorage.removeItem(k);
+      }
+    }
+  });
+})();
+
+// Safe JSON parse — never throws
+function safeJSON(str, fallback) {
+  if (!str) return fallback;
+  try { return JSON.parse(str); } catch(e) { return fallback; }
+}
 function saveCache() {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      videos: videos.slice(0, 200),  // cap to avoid quota
-      cats: cats,
-      ts: Date.now()
-    }));
-  } catch(e) {}
+    // Strip thumbnails before caching to avoid localStorage quota overflow
+    const cacheVids = videos.slice(0, 100).map(v=>({...v, thumb: v.thumb&&v.thumb.startsWith('data:')?'':v.thumb, files:[]}));
+    const data = JSON.stringify({ videos: cacheVids, cats: cats, ts: Date.now() });
+    localStorage.setItem(CACHE_KEY, data);
+  } catch(e) {
+    // Quota exceeded or other error — clear cache and move on
+    try { localStorage.removeItem(CACHE_KEY); } catch(e2) {}
+  }
 }
 function loadCache() {
   try {
-    const c = JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const c = JSON.parse(raw);
     if (!c.ts || Date.now()-c.ts > 5*60*1000) return false; // 5 min TTL
     if (c.videos && c.videos.length) { videos = c.videos; return true; }
   } catch(e) {}
@@ -2814,7 +2839,7 @@ function exitPreview() {
 // FOLDERS
 // ==============================================================
 function getFolders() {
-  try { return JSON.parse(localStorage.getItem('mhu_folders')||'{}'); } catch(e) { return {}; }
+  try { return safeJSON(localStorage.getItem('mhu_folders'), {}); } catch(e) { return {}; }
 }
 function saveFolders(f) { localStorage.setItem('mhu_folders', JSON.stringify(f)); }
 
@@ -3430,7 +3455,7 @@ function deleteCat(name){
 // ── Analytics event logging ─────────────────────────────────
 function logEvent(type,data){
   try{
-    const events=JSON.parse(localStorage.getItem('mhu_analytics')||'[]');
+    const events=safeJSON(localStorage.getItem('mhu_analytics'), []);
     events.push({type,userId:currentUser?.id||currentUser?.username,time:new Date().toISOString(),...data});
     if(events.length>500)events.splice(0,events.length-500);
     localStorage.setItem('mhu_analytics',JSON.stringify(events));
@@ -3983,7 +4008,7 @@ async function deleteVideo(id){
 
   // Persist the deletion list in localStorage so it survives page refresh
   try {
-    const deleted = JSON.parse(localStorage.getItem('mhu_deleted_ids')||'[]');
+    const deleted = safeJSON(localStorage.getItem('mhu_deleted_ids'), []);
     if(!deleted.includes(sid)) deleted.push(sid);
     localStorage.setItem('mhu_deleted_ids', JSON.stringify(deleted));
   } catch(e){}
@@ -4673,7 +4698,7 @@ function openUserReport(userId){
 // ===============================================================
 // PATHS PANEL
 // ===============================================================
-function getPaths(){try{return JSON.parse(localStorage.getItem('mhu_paths')||'[]');}catch(e){return [];}}
+function getPaths(){try{return safeJSON(localStorage.getItem('mhu_paths'), []);}catch(e){return [];}}
 function savePaths(paths){localStorage.setItem('mhu_paths',JSON.stringify(paths));}
 
 function renderPathsPanel(){
