@@ -2091,6 +2091,38 @@ function normalizeEmbedUrl(url) {
 }
 function isMp4(url) { return url && /\.mp4(\?|$)/i.test(url); }
 
+// ─── New-style Vimeo share links (vimeo.com/share/UUID) ─────────
+// These can't be converted to a player URL by pattern — they must be
+// resolved once via Vimeo's oEmbed API, then cached. Embedding the raw
+// share URL loads the ENTIRE vimeo.com site in the iframe (very slow).
+let _vimeoEmbedCache = {};
+try { _vimeoEmbedCache = JSON.parse(localStorage.getItem('mhu_vimeo_embed_cache') || '{}'); } catch(e) {}
+
+function isUnresolvedVimeoEmbed(url) {
+  if (!url) return false;
+  const n = normalizeEmbedUrl(url);
+  return /vimeo\.com\//i.test(n) && !/player\.vimeo\.com\/video\//i.test(n);
+}
+
+async function resolveVimeoEmbed(url) {
+  const key = url.split('?')[0];
+  if (_vimeoEmbedCache[key]) return _vimeoEmbedCache[key];
+  try {
+    const res = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(url));
+    if (!res.ok) return null;
+    const d = await res.json();
+    let src = null;
+    if (d.html) { const m = d.html.match(/src="([^"]+)"/); if (m) src = m[1].replace(/&amp;/g, '&'); }
+    if (!src && d.video_id) src = 'https://player.vimeo.com/video/' + d.video_id;
+    if (src) {
+      src += (src.includes('?') ? '&' : '?') + 'badge=0&autopause=0&player_id=0';
+      _vimeoEmbedCache[key] = src;
+      try { localStorage.setItem('mhu_vimeo_embed_cache', JSON.stringify(_vimeoEmbedCache)); } catch(e) {}
+    }
+    return src;
+  } catch(err) { return null; }
+}
+
 // ─── User Profile Modal ───────────────────────────────────────
 let profileTab = 'overview'; // 'overview' | 'preferences' | 'security' | 'activity'
 
@@ -2803,7 +2835,10 @@ function extractVimeoId(url) {
   if (!url) return null;
   // Private: vimeo.com/123456/abcdef or vimeo.com/channels/x/123456
   const m = url.match(/vimeo\.com\/(?:channels\/[^/]+\/)?(\d+)/);
-  return m ? m[1] : null;
+  if (m) return m[1];
+  // New-style share links: vimeo.com/share/UUID — resolvable via oEmbed
+  const s = url.match(/vimeo\.com\/share\/([a-f0-9-]{8,})/i);
+  return s ? s[1] : null;
 }
 
 function extractVimeoHash(url) {
@@ -3743,7 +3778,7 @@ function renderVideosPanel() {
           <div class="upload-label">Click to upload thumbnail</div>
         </div>
         <div id="thumb-preview-area">${newThumb||newThumbUrl?('<div style="position:relative;display:inline-block;margin-top:8px"><img src="'+(newThumb||newThumbUrl)+'" style="height:80px;border-radius:8px;border:1.5px solid var(--border)" onerror="this.style.display=\'none\'"/><button class="thumb-clear" onclick="newThumb=\'\';newThumbUrl=\'\';document.getElementById(\'thumb-preview-area\').innerHTML=\'\'" style="position:absolute;top:-6px;right:-6px">×</button></div>'):''}</div>
-        <input type="text" id="new-thumb-url-input" placeholder="Or paste image URL (https://...)" style="margin-top:8px;width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);outline:none" onblur="if(this.value.trim()){newThumbUrl=this.value.trim();const area=document.getElementById(\'thumb-preview-area\');if(area){area.innerHTML=\'<div style=\"position:relative;display:inline-block;margin-top:8px\"><img src=\"\'+newThumbUrl+\'"\" style=\"height:80px;border-radius:8px;border:1.5px solid var(--border)\"/><button class=\"thumb-clear\" onclick=\"newThumb=\'\'\'\';newThumbUrl=\'\'\'\';document.getElementById(\'\'\'thumb-preview-area\'\'\'\').innerHTML=\'\'\'\'\"  style=\"position:absolute;top:-6px;right:-6px\">×</button></div>\';}}"/>
+        <input type="text" id="new-thumb-url-input" placeholder="Or paste image URL (https://...)" style="margin-top:8px;width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);outline:none" onblur="handleThumbUrlBlur(this)"/><button class=\"thumb-clear\" onclick=\"newThumb=\'\'\'\';newThumbUrl=\'\'\'\';document.getElementById(\'\'\'thumb-preview-area\'\'\'\').innerHTML=\'\'\'\'\"  style=\"position:absolute;top:-6px;right:-6px\">×</button></div>\';}}"/>
       </div>
       <div class="ff full">
         <label>File Attachments <span style="font-weight:400;color:#aaa">(PDFs, docs, etc.)</span></label>
@@ -4192,6 +4227,19 @@ function handleCatSelect(val){
   const inline=document.getElementById('new-cat-inline');
   if(!inline)return;
   inline.style.display=val==='__new__'?'block':'none';
+}
+
+function handleThumbUrlBlur(input){
+  const val = input.value.trim();
+  if(!val) return;
+  newThumbUrl = val;
+  const area = document.getElementById('thumb-preview-area');
+  if(area){
+    area.innerHTML = '<div style="position:relative;display:inline-block;margin-top:8px">'
+      + '<img src="' + newThumbUrl.replace(/"/g,'&quot;') + '" style="height:80px;border-radius:8px;border:1.5px solid var(--border)" onerror="this.style.display=\'none\'"/>'
+      + '<button class="thumb-clear" onclick="newThumb=\'\';newThumbUrl=\'\';document.getElementById(\'thumb-preview-area\').innerHTML=\'\'" style="position:absolute;top:-6px;right:-6px">\u00d7</button>'
+      + '</div>';
+  }
 }
 
 // Add video
@@ -5755,7 +5803,14 @@ function openModal(id) {
         : '';
       va.innerHTML = '<div style="position:relative;width:100%;height:100%"><iframe id="modal-yt-frame" src="'+ytSrc+'" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:none"></iframe>'+blockOverlay+'</div>';
       setupYouTubeTracking();
-      setupYouTubeTracking();
+    } else if (isUnresolvedVimeoEmbed(v.url)) {
+      // New-style Vimeo share link — resolve to the lightweight player embed
+      va.innerHTML = '<div class="modal-ph"><div class="bplay">\ud83c\udfac</div><p style="color:#aaa">Loading player\u2026</p></div>';
+      resolveVimeoEmbed(v.url).then(function(src) {
+        var area = document.getElementById('modal-video-area');
+        if (!area) return; // modal was closed
+        area.innerHTML = '<iframe src="' + (src || embedUrl) + '" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+      });
     } else {
       va.innerHTML = '<iframe src="'+embedUrl+'" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
     }
@@ -5766,7 +5821,7 @@ function openModal(id) {
   document.getElementById('modal-desc').innerHTML = (v.desc||'').replace(/\n/g,'<br>') + chapHtml;
 
   var tagsHTML = (v.tags||[]).length
-    ? '<div class="tag-list">'+v.tags.map(function(t){return '<span class="vtag" onclick="searchTag(\''+t+'\'">#'+t+'</span>';}).join('')+'</div>'
+    ? '<div class="tag-list">'+v.tags.map(function(t){return '<span class="vtag" onclick="searchTag(\''+String(t).replace(/'/g,"\\'")+'\')">#'+t+'</span>';}).join('')+'</div>'
     : '';
 
   var isBookmarked = bookmarkIds.has(sid);
