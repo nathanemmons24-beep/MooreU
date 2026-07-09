@@ -6,6 +6,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#1a1a1a">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>\U0001f393</text></svg>">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Moore Holdings University</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1161,7 +1163,7 @@ const DB={
   get:(t,q='')=>sb(`${t}?${q}`),
   post:(t,b)=>sb(t,{method:'POST',body:b}),
   patch:(t,q,b)=>sb(`${t}?${q}`,{method:'PATCH',body:b,prefer:'return=representation'}),
-  upsert:(t,b)=>sb(t,{method:'POST',body:b,prefer:'resolution=merge-duplicates,return=representation'}),
+  upsert:(t,b,conflict)=>sb(t+(conflict?`?on_conflict=${conflict}`:''),{method:'POST',body:b,prefer:'resolution=merge-duplicates,return=representation'}),
   del:(t,q)=>sb(`${t}?${q}`,{method:'DELETE'}),
 };
 
@@ -1182,9 +1184,9 @@ const dbGetFiles      = ()=>DB.get('mhu_files','order=sort_order.asc');
 const dbSaveFile      = f=>DB.upsert('mhu_files',f);
 const dbDelFile       = id=>DB.del('mhu_files',`id=eq.${id}`);
 const dbGetProgress   = uid=>DB.get('mhu_progress',`user_id=eq.${uid}`);
-const dbUpsertProg    = (uid,vid,u)=>DB.upsert('mhu_progress',{user_id:uid,video_id:vid,...u,updated_at:new Date().toISOString()});
+const dbUpsertProg    = (uid,vid,u)=>DB.upsert('mhu_progress',{user_id:uid,video_id:vid,...u,updated_at:new Date().toISOString()},'user_id,video_id');
 const dbGetRecent     = uid=>DB.get('mhu_recent',`user_id=eq.${uid}&order=viewed_at.desc&limit=10`);
-const dbUpsertRecent  = (uid,vid)=>DB.upsert('mhu_recent',{user_id:uid,video_id:vid,viewed_at:new Date().toISOString()});
+const dbUpsertRecent  = (uid,vid)=>DB.upsert('mhu_recent',{user_id:uid,video_id:vid,viewed_at:new Date().toISOString()},'user_id,video_id');
 const dbGetAssigns    = uid=>DB.get('mhu_assignments',(uid?`user_id=eq.${uid}&`:'')+`order=created_at.desc`);
 const dbCreateAssign  = a=>DB.post('mhu_assignments',a);
 const dbGetNotifs     = uid=>DB.get('mhu_notifications',`user_id=eq.${uid}&order=created_at.desc&limit=50`);
@@ -1204,7 +1206,7 @@ const dbPostComment   = c=>DB.post('mhu_comments',c);
 const dbDeleteComment = id=>DB.del('mhu_comments',`id=eq.${id}`);
 // Ratings (per-video avg from all users)
 const dbGetRatings    = vid=>DB.get('mhu_ratings',`video_id=eq.${vid}`);
-const dbUpsertRating  = (uid,vid,stars)=>DB.upsert('mhu_ratings',{user_id:uid,video_id:vid,stars,updated_at:new Date().toISOString()});
+const dbUpsertRating  = (uid,vid,stars)=>DB.upsert('mhu_ratings',{user_id:uid,video_id:vid,stars,updated_at:new Date().toISOString()},'user_id,video_id');
 
 // Runtime caches
 let _dbUser=null, _dbUsers=[], _dbProgress=[], _dbRecent=[], _dbNotifs=[];
@@ -2036,7 +2038,13 @@ function toggleDarkMode() {
   const on = document.body.classList.toggle('dark');
   localStorage.setItem(DARK_KEY, on ? '1' : '0');
   // Persist to Supabase so it works across devices
-  if (_dbUser) dbUpdateUser(_dbUser.id, { dark_mode: on });
+  if (_dbUser && !window._darkModeSyncFailed) {
+    // sb() returns null on any failure (e.g. PGRST204: dark_mode column missing).
+    // Stop retrying for this session so we don't spam 400s; localStorage still works.
+    dbUpdateUser(_dbUser.id, { dark_mode: on }).then(function(r){
+      if (r === null) window._darkModeSyncFailed = true;
+    }).catch(function(){ window._darkModeSyncFailed = true; });
+  }
   const btn = document.getElementById('dark-toggle-btn');
   if (btn) btn.textContent = on ? '☀️' : '🌙';
 }
@@ -5809,7 +5817,16 @@ function openModal(id) {
       resolveVimeoEmbed(v.url).then(function(src) {
         var area = document.getElementById('modal-video-area');
         if (!area) return; // modal was closed
-        area.innerHTML = '<iframe src="' + (src || embedUrl) + '" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+        if (src) {
+          area.innerHTML = '<iframe src="' + src + '" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+        } else {
+          // oEmbed refused (video privacy blocks embedding). Do NOT load the raw
+          // share page — it half-plays then stops. Send the viewer to Vimeo instead.
+          var safeHref = String(v.url).replace(/"/g, '&quot;');
+          area.innerHTML = '<div class="modal-ph"><div class="bplay">\ud83d\udd12</div>'
+            + '<p style="color:#aaa;max-width:420px;text-align:center;line-height:1.5">This video\u2019s Vimeo privacy settings don\u2019t allow embedding here.<br>In Vimeo: Settings \u2192 Privacy \u2192 \u201cWhere can this be embedded?\u201d \u2192 add mooreu.org (or Anywhere).</p>'
+            + '<a href="' + safeHref + '" target="_blank" rel="noopener" style="margin-top:10px;background:var(--green);color:#fff;border-radius:9px;padding:10px 20px;font-weight:700;font-size:13px;text-decoration:none">Open on Vimeo \u2197</a></div>';
+        }
       });
     } else {
       va.innerHTML = '<iframe src="'+embedUrl+'" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
