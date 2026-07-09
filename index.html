@@ -2099,6 +2099,19 @@ function normalizeEmbedUrl(url) {
 }
 function isMp4(url) { return url && /\.mp4(\?|$)/i.test(url); }
 
+// Accept a pasted Vimeo/YouTube <iframe> embed code and extract its src.
+// Also useful for admins whose videos block oEmbed: the embed code's
+// player.vimeo.com URL always works.
+function cleanVideoUrl(val) {
+  if (!val) return val;
+  val = String(val).trim();
+  if (val.indexOf('<iframe') !== -1) {
+    var m = val.match(/src=["']([^"']+)["']/i);
+    if (m) return m[1].replace(/&amp;/g, '&');
+  }
+  return val;
+}
+
 // ─── New-style Vimeo share links (vimeo.com/share/UUID) ─────────
 // These can't be converted to a player URL by pattern — they must be
 // resolved once via Vimeo's oEmbed API, then cached. Embedding the raw
@@ -2115,20 +2128,26 @@ function isUnresolvedVimeoEmbed(url) {
 async function resolveVimeoEmbed(url) {
   const key = url.split('?')[0];
   if (_vimeoEmbedCache[key]) return _vimeoEmbedCache[key];
-  try {
-    const res = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(url));
-    if (!res.ok) return null;
-    const d = await res.json();
-    let src = null;
-    if (d.html) { const m = d.html.match(/src="([^"]+)"/); if (m) src = m[1].replace(/&amp;/g, '&'); }
-    if (!src && d.video_id) src = 'https://player.vimeo.com/video/' + d.video_id;
-    if (src) {
-      src += (src.includes('?') ? '&' : '?') + 'badge=0&autopause=0&player_id=0';
-      _vimeoEmbedCache[key] = src;
-      try { localStorage.setItem('mhu_vimeo_embed_cache', JSON.stringify(_vimeoEmbedCache)); } catch(e) {}
-    }
-    return src;
-  } catch(err) { return null; }
+  // Try the full URL first, then with tracking params (?share=copy&fl=...) stripped —
+  // Vimeo's oEmbed sometimes 404s on share URLs with extra params.
+  const attempts = url === key ? [url] : [url, key];
+  for (const attempt of attempts) {
+    try {
+      const res = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(attempt));
+      if (!res.ok) continue;
+      const d = await res.json();
+      let src = null;
+      if (d.html) { const m = d.html.match(/src="([^"]+)"/); if (m) src = m[1].replace(/&amp;/g, '&'); }
+      if (!src && d.video_id) src = 'https://player.vimeo.com/video/' + d.video_id;
+      if (src) {
+        src += (src.includes('?') ? '&' : '?') + 'badge=0&autopause=0&player_id=0';
+        _vimeoEmbedCache[key] = src;
+        try { localStorage.setItem('mhu_vimeo_embed_cache', JSON.stringify(_vimeoEmbedCache)); } catch(e) {}
+        return src;
+      }
+    } catch(err) {}
+  }
+  return null;
 }
 
 // ─── User Profile Modal ───────────────────────────────────────
@@ -4191,7 +4210,7 @@ function saveEdit(){
   editStagedFiles=[];
   v.title=document.getElementById('edit-title')?.value.trim()||v.title;
   v.category=document.getElementById('edit-cat')?.value||v.category;
-  v.url=document.getElementById('edit-url')?.value.trim()||'';
+  v.url=cleanVideoUrl(document.getElementById('edit-url')?.value.trim()||'');
   v.duration=document.getElementById('edit-dur')?.value.trim()||v.duration;
   v.expiresAt=document.getElementById('edit-expires')?.value||'';
   v.publishAt=document.getElementById('edit-publish')?.value||'';
@@ -4286,7 +4305,7 @@ function addVideo(){
   }
   let cat = selectedCats.length === 1 ? selectedCats[0] : (selectedCats.length > 1 ? selectedCats : null);
   const dur=document.getElementById('new-dur')?.value.trim()||'0:00';
-  const url=document.getElementById('new-url')?.value.trim()||'';
+  const url=cleanVideoUrl(document.getElementById('new-url')?.value.trim()||'');
   const desc=document.getElementById('new-desc')?.value.trim()||'';
   const tagsRaw=document.getElementById('new-tags')?.value||'';
   const expires=document.getElementById('new-expires')?.value||'';
@@ -5823,8 +5842,13 @@ function openModal(id) {
           // oEmbed refused (video privacy blocks embedding). Do NOT load the raw
           // share page — it half-plays then stops. Send the viewer to Vimeo instead.
           var safeHref = String(v.url).replace(/"/g, '&quot;');
+          var isAdmin = effectiveRole() !== 'member';
+          var adminHint = isAdmin
+            ? '<p style="color:#888;max-width:460px;text-align:center;line-height:1.5;font-size:12px;margin-top:8px">Admin fix: on Vimeo open the video \u2192 Share \u2192 copy the <b>Embed</b> code and paste the whole thing into this video\u2019s URL field here (Edit video). Or set Privacy \u2192 \u201cWhere can this be embedded?\u201d to mooreu.org / Anywhere and use the vimeo.com/ID link.</p>'
+            : '';
           area.innerHTML = '<div class="modal-ph"><div class="bplay">\ud83d\udd12</div>'
-            + '<p style="color:#aaa;max-width:420px;text-align:center;line-height:1.5">This video\u2019s Vimeo privacy settings don\u2019t allow embedding here.<br>In Vimeo: Settings \u2192 Privacy \u2192 \u201cWhere can this be embedded?\u201d \u2192 add mooreu.org (or Anywhere).</p>'
+            + '<p style="color:#aaa;max-width:420px;text-align:center;line-height:1.5">This video\u2019s Vimeo settings don\u2019t allow it to play embedded here.</p>'
+            + adminHint
             + '<a href="' + safeHref + '" target="_blank" rel="noopener" style="margin-top:10px;background:var(--green);color:#fff;border-radius:9px;padding:10px 20px;font-weight:700;font-size:13px;text-decoration:none">Open on Vimeo \u2197</a></div>';
         }
       });
@@ -6168,6 +6192,7 @@ async function submitForgotPassword() {
 
 // Auto-detect thumbnail AND duration when URL is pasted
 async function autoDetectFromUrl(url) {
+  url = cleanVideoUrl(url);
   if (!url || url.length < 10) return;
 
   // Show detecting indicator
