@@ -2102,6 +2102,34 @@ function isMp4(url) { return url && /\.mp4(\?|$)/i.test(url); }
 // Accept a pasted Vimeo/YouTube <iframe> embed code and extract its src.
 // Also useful for admins whose videos block oEmbed: the embed code's
 // player.vimeo.com URL always works.
+// ─── Vimeo player diagnostics ─────────────────────────────
+// Subscribes to the embedded player's own events so playback failures
+// (privacy errors, stalls) report their real reason in the console/toast.
+function attachVimeoDiagnostics() {
+  if (window._vimeoDiagAttached) return;
+  window._vimeoDiagAttached = true;
+  window.addEventListener('message', function(e) {
+    if (e.origin !== 'https://player.vimeo.com') return;
+    var data;
+    try { data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; } catch(err) { return; }
+    if (!data || !data.event) return;
+    if (data.event === 'ready') {
+      // subscribe to error + bufferstart so failures self-report
+      ['error','bufferstart','bufferend'].forEach(function(ev){
+        try { e.source.postMessage(JSON.stringify({method:'addEventListener', value:ev}), 'https://player.vimeo.com'); } catch(err) {}
+      });
+    } else if (data.event === 'error') {
+      var d = data.data || {};
+      console.warn('[Vimeo player error]', d.name || '', d.message || '', d);
+      if (typeof showToast === 'function') showToast('\u26a0\ufe0f Vimeo: ' + (d.name || 'playback error') + (d.message ? ' \u2014 ' + d.message : ''));
+    } else if (data.event === 'bufferstart') {
+      console.log('[Vimeo] buffering\u2026');
+    } else if (data.event === 'bufferend') {
+      console.log('[Vimeo] buffer ok, playing');
+    }
+  });
+}
+
 function cleanVideoUrl(val) {
   if (!val) return val;
   val = String(val).trim();
@@ -5838,6 +5866,8 @@ function openModal(id) {
         if (!area) return; // modal was closed
         if (src) {
           area.innerHTML = '<iframe src="' + src + '" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+          attachVimeoDiagnostics();
+          console.log('[Player] embedding:', src);
         } else {
           // oEmbed refused (video privacy blocks embedding). Do NOT load the raw
           // share page — it half-plays then stops. Send the viewer to Vimeo instead.
@@ -5854,6 +5884,8 @@ function openModal(id) {
       });
     } else {
       va.innerHTML = '<iframe src="'+embedUrl+'" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+      if (/player\.vimeo\.com/.test(embedUrl)) attachVimeoDiagnostics();
+      console.log('[Player] embedding:', embedUrl);
     }
   }
 
