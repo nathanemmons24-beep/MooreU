@@ -1175,7 +1175,7 @@ const dbCreateUser    = u=>DB.post('mhu_users',u);
 const dbUpdateUser    = (id,u)=>DB.patch('mhu_users',`id=eq.${id}`,{...u});
 const dbDelUser       = id=>DB.del('mhu_users',`id=eq.${id}`);
 const dbGetCategories = ()=>DB.get('mhu_categories','order=sort_order.asc');
-const dbSaveCat       = c=>DB.upsert('mhu_categories',c);
+const dbSaveCat       = c=>DB.upsert('mhu_categories',c,'name');
 const dbDelCat        = n=>DB.del('mhu_categories',`name=eq.${encodeURIComponent(n)}`);
 const dbGetVideos     = ()=>DB.get('mhu_videos','order=sort_order.asc,added_at.asc');
 const dbSaveVideo     = v=>DB.upsert('mhu_videos',v);
@@ -1529,7 +1529,15 @@ async function saveData(){
       const isUuid=/^[0-9a-f-]{36}$/.test(String(v.id));
       const saved=await dbSaveVideo({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,archived:!!v.archived,sort_order:v.sortOrder||0,added_at:v.addedAt||new Date().toISOString()});
       const savedId=saved?.[0]?.id||v.id;
-      for(let fi=0;fi<(v.files||[]).length;fi++){const f=v.files[fi];await dbSaveFile({id:f._id||undefined,video_id:savedId,name:f.name,label:f.label||f.name,file_type:f.type||'',file_size:f.size||0,data:f.data,sort_order:fi});}
+      for(let fi=0;fi<(v.files||[]).length;fi++){
+        const f=v.files[fi];
+        // Only include `data` when we actually have it: sending null violates the
+        // not-null constraint, and omitting it on an upsert leaves the stored blob intact.
+        const row={id:f._id||undefined,video_id:savedId,name:f.name,label:f.label||f.name,file_type:f.type||'',file_size:f.size||0,sort_order:fi};
+        if(f.data) row.data=f.data;
+        else if(!f._id) continue; // brand-new file with no content: nothing to store
+        await dbSaveFile(row);
+      }
     }
     dirty=false;refreshDirtyUI();showSyncStatus('');showToast('💾 Saved to cloud!');
   }catch(e){console.error(e);showSyncStatus('');showToast('⚠ Save failed');}
@@ -2129,6 +2137,16 @@ function attachVimeoDiagnostics() {
     }
   });
 }
+
+// Convert player.vimeo.com URLs back to a vimeo.com URL that oEmbed accepts.
+function vimeoOembedSource(url) {
+  const m = String(url).match(/player\.vimeo\.com\/video\/(\d+)(?:[^#]*[?&]h=([a-zA-Z0-9]+))?/);
+  if (m) return 'https://vimeo.com/' + m[1] + (m[2] ? '/' + m[2] : '');
+  return url;
+}
+
+// HTML-escape a value for safe use inside an attribute or text node.
+function escAttr(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function cleanVideoUrl(val) {
   if (!val) return val;
@@ -4155,7 +4173,7 @@ function openEditModal(id){
   const assetRows=(v.files||[]).map((f,i)=>`
     <div class="asset-row-edit" id="asset-row-${i}">
       <div class="asset-icon-edit">${fileIcon(f.type,f.name)}</div>
-      <input class="asset-name-input" id="asset-name-${i}" value="${f.label||f.name}" placeholder="Asset name"/>
+      <input class="asset-name-input" id="asset-name-${i}" value="${escAttr(f.label||f.name)}" placeholder="Asset name"/>
       <div class="asset-size-edit">${formatBytes(f.size)}</div>
       <button class="asset-del-edit" onclick="removeEditAsset(${i})">x</button>
     </div>`).join('');
@@ -4163,15 +4181,15 @@ function openEditModal(id){
   document.getElementById('edit-modal-title').textContent='Edit: '+v.title;
   document.getElementById('edit-modal-inner').querySelector('.edit-modal-body').innerHTML=`
     <div class="form-grid">
-      <div class="ff"><label>Title</label><input type="text" id="edit-title" value="${v.title}"/></div>
+      <div class="ff"><label>Title</label><input type="text" id="edit-title" value="${escAttr(v.title)}"/></div>
       <div class="ff"><label>Category</label><select id="edit-cat">${catOpts}</select></div>
-      <div class="ff"><label>Video URL</label><input type="text" id="edit-url" value="${v.url||''}" oninput="clearTimeout(window._editUrlDebounce);window._editUrlDebounce=setTimeout(()=>autoDetectFromUrl(this.value,'edit'),800)" onblur="autoDetectFromUrl(this.value,'edit')"/></div>
-      <div class="ff"><label>Duration</label><input type="text" id="edit-dur" value="${v.duration||''}"/></div>
+      <div class="ff"><label>Video URL</label><input type="text" id="edit-url" value="${escAttr(v.url||'')}" oninput="clearTimeout(window._editUrlDebounce);window._editUrlDebounce=setTimeout(()=>autoDetectFromUrl(this.value,'edit'),800)" onblur="autoDetectFromUrl(this.value,'edit')"/></div>
+      <div class="ff"><label>Duration</label><input type="text" id="edit-dur" value="${escAttr(v.duration||'')}"/></div>
       <div class="ff"><label>Expires</label><input type="date" id="edit-expires" value="${v.expiresAt||''}"/></div>
       <div class="ff"><label>Publish</label><input type="date" id="edit-publish" value="${v.publishAt||''}"/></div>
-      <div class="ff"><label>Tags</label><input type="text" id="edit-tags" value="${(v.tags||[]).join(', ')}"/></div>
+      <div class="ff"><label>Tags</label><input type="text" id="edit-tags" value="${escAttr((v.tags||[]).join(', '))}"/></div>
       <div class="ff full"><label>Description <span style="font-weight:400;color:#aaa">(add timestamps like 0:00 Topic for chapters)</span></label>
-        <textarea id="edit-desc" rows="3">${v.desc||''}</textarea></div>
+        <textarea id="edit-desc" rows="3">${escAttr(v.desc||'')}</textarea></div>
       <div class="ff full" style="display:flex;align-items:center;gap:16px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:12px 14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--text);margin:0">
           <input type="checkbox" id="edit-required" ${v.required?'checked':''} style="width:16px;height:16px;accent-color:#c0392b"/> Required Viewing
@@ -4179,9 +4197,9 @@ function openEditModal(id){
       </div>
       <div class="ff full">
         <label>Thumbnail</label>
-        ${thumbSrc?`<img src="${thumbSrc}" style="height:80px;border-radius:8px;border:1.5px solid var(--border);display:block;margin-bottom:8px"/>`:''}
+        ${thumbSrc?`<img src="${escAttr(thumbSrc)}" style="height:80px;border-radius:8px;border:1.5px solid var(--border);display:block;margin-bottom:8px"/>`:''}
         <div class="upload-drop"><input type="file" accept="image/*" onchange="handleEditThumbUpload(event)"/><div class="upload-label">Upload new thumbnail</div></div>
-        <input type="text" id="edit-thumb-url" placeholder="Or paste image URL" style="width:100%;margin-top:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;color:var(--text);outline:none" onfocus="this.style.borderColor=\"var(--green)\"" onblur="this.style.borderColor=\"var(--border)\""/>
+        <input type="text" id="edit-thumb-url" placeholder="Or paste image URL" style="width:100%;margin-top:8px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;padding:7px 11px;font-size:13px;color:var(--text);outline:none" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"/>
       </div>
       <div class="ff full">
         <label>Attachments</label>
@@ -4208,6 +4226,10 @@ function openEditModal(id){
       <button class="btn-save-edit" onclick="saveEdit()">Save Changes</button>
       <button class="btn-cancel-edit" onclick="closeEditModal()">Cancel</button>
     </div>`;
+  // Backfill: auto-detect missing thumbnail/duration from the video URL
+  if (v.url && (!v.thumb || !v.duration || v.duration === '0:00')) {
+    setTimeout(() => autoDetectFromUrl(v.url, 'edit'), 60);
+  }
   // Load existing quiz questions into edit form
   if (v.quiz && v.quiz.length) {
     setTimeout(() => {
@@ -4228,7 +4250,7 @@ function openEditModal(id){
   }
   document.getElementById('edit-overlay').style.display='flex';
 }
-function saveEdit(){
+async function saveEdit(){
   const sid=String(editVideoId);const v=videos.find(x=>String(x.id)===sid);if(!v)return;
   (v.files||[]).forEach((f,i)=>{const inp=document.getElementById('asset-name-'+i);if(inp)f.label=inp.value.trim()||f.name;});
   const toRemove=[...editRemovedAssets].sort((a,b)=>b-a);
@@ -4250,6 +4272,9 @@ function saveEdit(){
   const thumbUrl=document.getElementById('edit-thumb-url')?.value.trim();
   if(editNewThumb)v.thumb=editNewThumb;
   else if(thumbUrl)v.thumb=thumbUrl;
+  if(!v.thumb && v.url){
+    try{ v.thumb=(await autofetchThumbnail(v.url))||''; }catch(e){}
+  }
   saveData().then(()=>showToast('Video updated and saved!'));
   closeEditModal();renderManage();
 }
@@ -4318,7 +4343,7 @@ function handleThumbUpload(e){
 }
 
 let _addingVideo = false;
-function addVideo(){
+async function addVideo(){
   if(_addingVideo){ showToast('Already saving, please wait...'); return; }
 
   const title=document.getElementById('new-title')?.value.trim();
@@ -4347,7 +4372,14 @@ function addVideo(){
   _addingVideo = true;
 
   const tags=tagsRaw.split(',').map(t=>t.trim().toLowerCase()).filter(Boolean);
-  const thumbVal=newThumb||newThumbUrl||'';
+  let thumbVal=newThumb||newThumbUrl||'';
+  // The URL-field auto-detect is async (debounce + network). If the admin clicks
+  // Add before it lands, fetch the thumbnail right here so it's never lost.
+  if(!thumbVal && url){
+    showToast('Fetching thumbnail\u2026');
+    try{ thumbVal=(await autofetchThumbnail(url))||''; }catch(e){ thumbVal=''; }
+    if(!thumbVal) console.warn('[Thumb] no thumbnail available for', url);
+  }
   const newId='vid_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   const publishAt=document.getElementById('new-publish')?.value||'';
   const quiz=document.getElementById('new-has-quiz')?.checked?collectQuizData('new'):[];
@@ -5718,16 +5750,13 @@ async function autofetchThumbnail(url) {
   const ytId = extractYouTubeId(url);
   if (ytId) return 'https://img.youtube.com/vi/' + ytId + '/maxresdefault.jpg';
 
-  // Private Vimeo (vimeo.com/ID/HASH) — oEmbed needs auth, skip
-  const vimPriv = url.match(/vimeo\.com\/(\d+)\/([a-f0-9]+)/);
-  if (vimPriv) return null;
-
-  // Public Vimeo — oEmbed works fine
-  const vimeoId = extractVimeoId(url);
-  if (vimeoId) {
+  // Any Vimeo URL — oEmbed resolves public, unlisted (with hash), share links,
+  // and player URLs (converted back to a vimeo.com URL first). Truly private
+  // videos 404 here and fall through to the manual-upload hint.
+  if (/vimeo\.com\//i.test(url)) {
     try {
-      const res = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(url) + '&width=640');
-      if (!res.ok) return null;
+      const res = await fetch('https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(vimeoOembedSource(url)) + '&width=640');
+      if (!res.ok) { console.warn('[Thumb] Vimeo oEmbed', res.status, 'for', vimeoOembedSource(url), '\u2014 video may be fully Private'); return null; }
       const d = await res.json();
       return d.thumbnail_url || null;
     } catch(err) { return null; }
@@ -6223,9 +6252,17 @@ async function submitForgotPassword() {
 }
 
 // Auto-detect thumbnail AND duration when URL is pasted
-async function autoDetectFromUrl(url) {
+async function autoDetectFromUrl(url, prefix) {
   url = cleanVideoUrl(url);
   if (!url || url.length < 10) return;
+  if (prefix === 'edit') {
+    // Edit modal: fill the thumbnail-URL field (saved by saveEdit) and duration.
+    const thumb = await autofetchThumbnail(url);
+    const tf = document.getElementById('edit-thumb-url');
+    if (thumb && tf && !tf.value && !editNewThumb) tf.value = thumb;
+    autofetchDuration(url, 'edit');
+    return;
+  }
 
   // Show detecting indicator
   const thumbArea = document.getElementById('thumb-preview-area');
@@ -6271,9 +6308,9 @@ function videoVisible(v) {
 }
 
 // Auto-fetch duration from video URL
-async function autofetchDuration(url) {
+async function autofetchDuration(url, prefix) {
   if (!url) return;
-  const durEl = document.getElementById('new-dur');
+  const durEl = document.getElementById(prefix === 'edit' ? 'edit-dur' : 'new-dur');
   const statusEl = document.getElementById('dur-status');
   if (!durEl) return;
 
@@ -6310,12 +6347,11 @@ async function autofetchDuration(url) {
     return;
   }
 
-  // Vimeo
-  const vimeoId = extractVimeoId(url);
-  if (vimeoId) {
+  // Vimeo (any form: public, unlisted, share, player)
+  if (/vimeo\.com\//i.test(url)) {
     if (statusEl) statusEl.textContent = ' — detecting...';
     try {
-      const oembedUrl = 'https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(url);
+      const oembedUrl = 'https://vimeo.com/api/oembed.json?url=' + encodeURIComponent(vimeoOembedSource(url));
       const res = await fetch(oembedUrl);
       const data = await res.json();
       if (data && data.duration) {
