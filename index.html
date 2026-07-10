@@ -1531,6 +1531,7 @@ async function saveData(){
       const isUuid=/^[0-9a-f-]{36}$/.test(String(v.id));
       const saved=await dbSaveVideo({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,archived:!!v.archived,sort_order:v.sortOrder||0,added_at:v.addedAt||new Date().toISOString()});
       const savedId=saved?.[0]?.id||v.id;
+      if(!isUuid && saved?.[0]?.id) v.id=saved[0].id; // adopt DB id so re-saves update instead of duplicating
       for(let fi=0;fi<(v.files||[]).length;fi++){
         const f=v.files[fi];
         // Only include `data` when we actually have it: sending null violates the
@@ -4433,29 +4434,38 @@ async function addVideo(){
   showToast('Saving...');
   renderManage();
 
-  // Save ONLY this new video to Supabase (not all videos)
+  // Save ONLY this new video to Supabase (not all videos).
+  // NOTE: the id column is a UUID — never send the local 'vid_...' id.
+  // Postgres generates the real id; we adopt it locally below.
   dbSaveVideo({
-    id:newId, title, category:cat, url, thumb:thumbVal, duration:dur,
+    title, category:cat, url, thumb:thumbVal, duration:dur,
     description:desc, tags, required, featured:false,
     expires_at:expires||null, publish_at:publishAt||null,
     archived:false, sort_order:newVideo.sortOrder,
     quiz:quiz.length?quiz:null,
     added_at:newVideo.addedAt
-  }).then(async ()=>{
+  }).then(async (saved)=>{
+    const dbId = saved && saved[0] && saved[0].id;
+    if(!dbId){
+      // sb() returns null on HTTP errors — surface the failure honestly
+      throw new Error('insert rejected (see [SB] log above)');
+    }
+    newVideo.id = dbId; // adopt the real UUID so edits/deletes target the right row
     // Save files if any
     for(const f of newVideo.files){
       if(f._staged){
-        await dbSaveFile({video_id:newId,name:f.name,label:f.label||f.name,
+        await dbSaveFile({video_id:dbId,name:f.name,label:f.label||f.name,
           file_type:f.type,file_size:f.size,file_url:f.url||f.data||'',archived:false});
       }
     }
     showToast('✅ Video saved!');
     _addingVideo=false;
+    renderManage(); // re-render so row actions bind to the real id
   }).catch(err=>{
     console.error('Save error:', err);
-    showToast('⚠ Save failed — check connection');
+    showToast('⚠ Save failed — video NOT stored. Check console.');
     // Remove from local state if save failed
-    videos=videos.filter(v=>v.id!==newId);
+    videos=videos.filter(v=>v.id!==newVideo.id);
     _addingVideo=false;
     renderManage();
   });
