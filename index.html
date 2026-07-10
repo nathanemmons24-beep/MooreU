@@ -3524,9 +3524,13 @@ function renderHome() {
   // Recently viewed strip
   let recentStrip = '';
   if (activeFilter === 'All' && !searchQuery && recentIds.length > 0) {
-    const recentVids = recentIds.map(id=>videos.find(v=>v.id===id)).filter(Boolean).filter(v=>!isExpired(v)).slice(0,8);
+    const allRecent = recentIds.map(id=>videos.find(v=>v.id===id)).filter(Boolean).filter(v=>!isExpired(v));
+    const recentVids = allRecent.slice(0,6);
     if (recentVids.length) {
-      recentStrip = `<div class="strip-section"><div class="strip-hdr"><span style="font-size:16px">🕐</span><div class="strip-title">Recently Viewed</div></div>
+      const seeAllRecent = allRecent.length > 6
+        ? '<button onclick="setFilter(\'__recent__\')" style="margin-left:auto;background:none;border:none;color:var(--green);font-size:12px;cursor:pointer;font-weight:700">See all</button>'
+        : '';
+      recentStrip = `<div class="strip-section"><div class="strip-hdr"><span style="font-size:16px">🕐</span><div class="strip-title">Recently Viewed</div>${seeAllRecent}</div>
         <div class="strip-scroll">${recentVids.map(v=>stripCard(v)).join('')}</div>
       </div>`;
     }
@@ -3540,6 +3544,17 @@ function renderHome() {
       bookmarkStrip = '<div class="strip-section" style="margin-top:4px"><div class="strip-hdr"><span style="font-size:16px">❤️</span><div class="strip-title">Favorites</div><button onclick="setFilter(\'__favs__\')" style="margin-left:auto;background:none;border:none;color:var(--green);font-size:12px;cursor:pointer;font-weight:700">See all</button></div>'
         + '<div class="strip-scroll">' + favVids.map(v=>stripCard(v)).join('') + '</div></div>';
     }
+  }
+  if (activeFilter === '__recent__') {
+    const recVids = recentIds.map(id=>videos.find(v=>String(v.id)===String(id))).filter(Boolean).filter(v=>!isExpired(v)&&videoVisible(v));
+    const m0 = {icon:'🕐',color:'#4a7c3f',bg:'rgba(74,124,63,.12)',gradient:'#1a2e18,#0f1f0d'};
+    const recHtml = '<div class="cat-section"><div class="sec-header"><div class="sec-icon" style="background:rgba(74,124,63,.12)">🕐</div><div class="sec-name">Recently Viewed</div><div class="sec-count">' + recVids.length + ' video' + (recVids.length!==1?'s':'') + '</div></div>'
+      + (recVids.length
+        ? '<div class="video-grid">' + recVids.map(v=>videoCard(v, cats[getVidCats(v)[0]]||m0)).join('') + '</div>'
+        : '<div style="padding:32px;text-align:center;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">🕐</div><div style="font-size:16px;font-weight:700">Nothing viewed yet</div><div style="font-size:13px;margin-top:6px">Videos you open will show up here</div></div>')
+      + '</div>';
+    document.getElementById('main-content').innerHTML = '<div class="lib-body"><div class="filter-row">' + filterBtns + '</div>' + recHtml + '</div>';
+    return;
   }
   if (activeFilter === '__favs__') {
     const favVids = [...favoriteIds].map(id=>videos.find(v=>String(v.id)===String(id))).filter(Boolean).filter(v=>!isExpired(v)&&videoVisible(v));
