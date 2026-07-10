@@ -1215,7 +1215,7 @@ const dbGetPaths      = ()=>DB.get('mhu_paths','order=created_at.asc');
 const dbSavePath      = p=>DB.upsert('mhu_paths',p);
 const dbDelPath       = id=>DB.del('mhu_paths',`id=eq.${id}`);
 const dbGetVis        = ()=>DB.get('mhu_visibility');
-const dbSetVis        = (role,cat,vis)=>DB.upsert('mhu_visibility',{role,cat_name:cat,visible:vis});
+const dbSetVis        = (role,cat,vis)=>DB.upsert('mhu_visibility',{role,cat_name:cat,visible:vis},'role,cat_name');
 // Comments
 const dbGetComments   = vid=>DB.get('mhu_comments',`video_id=eq.${vid}&order=created_at.asc`);
 const dbPostComment   = c=>DB.post('mhu_comments',c);
@@ -1570,12 +1570,15 @@ async function saveSettings(){
   showToast('💾 Settings saved to cloud!');
 }
 
-async function toggleVisibility(role,catName,isVisible){
-  await dbSetVis(role,catName,isVisible);
+async function toggleVisibility(role,catName,isVisible,cb){
+  // Update UI + local state immediately (cb is passed from the onchange handler —
+  // the global `event` is gone after an await, which used to crash here)
   const vis=loadVisibility();vis[`${role}__${catName}`]=isVisible;localStorage.setItem(VISIBILITY_KEY,JSON.stringify(vis));
-  const cb=event.target,label=cb.nextElementSibling;
+  const label=cb&&cb.nextElementSibling;
   if(label){label.textContent=isVisible?'Visible':'Hidden';label.style.color=isVisible?'var(--green)':'var(--muted)';}
-  showToast(`${isVisible?'✅':'🚫'} ${catName} ${isVisible?'visible':'hidden'} for ${role}s`);
+  const saved=await dbSetVis(role,catName,isVisible);
+  if(saved) showToast(`${isVisible?'\u2705':'\ud83d\udeab'} ${catName} ${isVisible?'visible':'hidden'} for ${role}s`);
+  else showToast('\u26a0 Visibility change may not have synced');
 }
 
 async function addTeamUser(){
@@ -4565,7 +4568,7 @@ function renderSettingsPanel(){
       const key=role+'__'+cat;const isOn=vis[key]!==false;
       return `<td style="text-align:center;padding:10px 16px">
         <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="checkbox" ${isOn?'checked':''} onchange="toggleVisibility('${role}','${cat}',this.checked)" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
+          <input type="checkbox" ${isOn?'checked':''} onchange="toggleVisibility('${role}','${cat.replace(/'/g,"\\'")}',this.checked,this)" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer"/>
           <span style="font-size:12px;color:${isOn?'var(--green)':'var(--muted)'}">${isOn?'Visible':'Hidden'}</span>
         </label>
       </td>`;
