@@ -1179,6 +1179,22 @@ const dbSaveCat       = c=>DB.upsert('mhu_categories',c,'name');
 const dbDelCat        = n=>DB.del('mhu_categories',`name=eq.${encodeURIComponent(n)}`);
 const dbGetVideos     = ()=>DB.get('mhu_videos','order=sort_order.asc,added_at.asc');
 const dbSaveVideo     = v=>DB.upsert('mhu_videos',v);
+// Saves a video row; if the DB lacks the optional `quiz` column (PGRST204),
+// retries without it so the video itself is never lost, and warns once.
+async function saveVideoRow(payload){
+  if(window._quizColMissing) delete payload.quiz;
+  let saved = await dbSaveVideo(payload);
+  if(!saved && ('quiz' in payload)){
+    delete payload.quiz;
+    saved = await dbSaveVideo(payload);
+    if(saved && !window._quizColMissing){
+      window._quizColMissing = true;
+      console.warn('[DB] mhu_videos has no `quiz` column — videos save fine but quizzes are NOT stored. Fix in Supabase SQL editor:\n  ALTER TABLE mhu_videos ADD COLUMN IF NOT EXISTS quiz jsonb;\n  NOTIFY pgrst, \'reload schema\';');
+      if(typeof showToast==='function') showToast('\u26a0 Saved, but quizzes need a DB update \u2014 see console');
+    }
+  }
+  return saved;
+}
 const dbDelVideo      = id=>DB.del('mhu_videos',`id=eq.${id}`);
 const dbGetFiles      = ()=>DB.get('mhu_files','order=sort_order.asc');
 const dbSaveFile      = f=>DB.upsert('mhu_files',f);
@@ -1266,7 +1282,7 @@ async function syncFromDB(){
           id:v.id,title:v.title,category:v.category,url:v.url,thumb:v.thumb,
           duration:v.duration,desc:v.description,tags:v.tags||[],required:v.required,
           featured:v.featured,expiresAt:v.expires_at||'',publishAt:v.publish_at||'',
-          archived:v.archived||false,sortOrder:v.sort_order,addedAt:v.added_at,
+          archived:v.archived||false,sortOrder:v.sort_order,addedAt:v.added_at,quiz:v.quiz||[],
           files:fData.filter(f=>f.video_id===v.id).map(f=>({_id:f.id,name:f.name,label:f.label||f.name,url:f.url,type:f.file_type||'video'}))
         }));
       } else {
@@ -1529,7 +1545,7 @@ async function saveData(){
     }
     for(const v of videos){
       const isUuid=/^[0-9a-f-]{36}$/.test(String(v.id));
-      const saved=await dbSaveVideo({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,archived:!!v.archived,sort_order:v.sortOrder||0,added_at:v.addedAt||new Date().toISOString()});
+      const saved=await saveVideoRow({id:isUuid?v.id:undefined,title:v.title,category:v.category,url:v.url||'',thumb:v.thumb||'',duration:v.duration||'0:00',description:v.desc||'',tags:v.tags||[],required:!!v.required,featured:!!v.featured,expires_at:v.expiresAt||null,publish_at:v.publishAt||null,archived:!!v.archived,sort_order:v.sortOrder||0,quiz:(v.quiz&&v.quiz.length)?v.quiz:null,added_at:v.addedAt||new Date().toISOString()});
       const savedId=saved?.[0]?.id||v.id;
       if(!isUuid && saved?.[0]?.id) v.id=saved[0].id; // adopt DB id so re-saves update instead of duplicating
       for(let fi=0;fi<(v.files||[]).length;fi++){
@@ -4437,7 +4453,7 @@ async function addVideo(){
   // Save ONLY this new video to Supabase (not all videos).
   // NOTE: the id column is a UUID — never send the local 'vid_...' id.
   // Postgres generates the real id; we adopt it locally below.
-  dbSaveVideo({
+  saveVideoRow({
     title, category:cat, url, thumb:thumbVal, duration:dur,
     description:desc, tags, required, featured:false,
     expires_at:expires||null, publish_at:publishAt||null,
