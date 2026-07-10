@@ -4078,16 +4078,32 @@ function addCategory(){
   renderManage();saveData().then(()=>showToast(`Category "${name}" saved!`));
 }
 function deleteCategory(name){
-  const count=videos.filter(v=>v.category===name).length;
+  // Videos can belong to one category (string) or several (array)
+  const affected=videos.filter(v=>getVidCats(v).includes(name));
+  const count=affected.length;
   if(count>0){
     const target=Object.keys(cats).find(c=>c!==name);
     if(!target){showToast('Cannot delete the only category');return;}
     if(!confirm(`Delete "${name}" and move ${count} video${count!==1?'s':''} to "${target}"?`))return;
-    videos.forEach(v=>{if(v.category===name)v.category=target;});
+    affected.forEach(v=>{
+      if(Array.isArray(v.category)){
+        v.category=v.category.filter(c=>c!==name);
+        if(!v.category.length)v.category=target;
+        else if(v.category.length===1)v.category=v.category[0];
+      } else {
+        v.category=target;
+      }
+    });
   } else {
     if(!confirm(`Delete category "${name}"?`))return;
   }
-  delete cats[name];renderManage();saveData().then(()=>showToast(`Category "${name}" deleted`));
+  delete cats[name];renderManage();
+  // Delete the row in Supabase FIRST — saveData only upserts, so without this
+  // the category comes straight back on refresh.
+  dbDelCat(name)
+    .then(()=>saveData())
+    .then(()=>showToast(`Category "${name}" deleted`))
+    .catch(()=>showToast('\u26a0 Delete may not have synced \u2014 check connection'));
 }
 
 // ===============================================================
@@ -4103,10 +4119,19 @@ function bulkMove(){
   videos.forEach(v=>{if(selectedIds.has(String(v.id)))v.category=target;});
   selectedIds.clear();saveData();showToast(`Moved ${n} to "${target}"`);renderManage();
 }
-function bulkDelete(){
+async function bulkDelete(){
   if(!confirm(`Delete ${selectedIds.size} selected videos?`))return;
+  const ids=[...selectedIds];
   videos=videos.filter(v=>!selectedIds.has(String(v.id)));
-  selectedIds.clear();saveData();renderManage();
+  selectedIds.clear();renderManage();
+  // Persist: delete each row in Supabase and record locally as a fallback
+  const deleted=safeJSON(localStorage.getItem('mhu_deleted_ids'), []);
+  for(const id of ids){
+    try{ await dbDelVideo(id); }catch(e){}
+    if(!deleted.includes(id))deleted.push(id);
+  }
+  try{ localStorage.setItem('mhu_deleted_ids', JSON.stringify(deleted)); }catch(e){}
+  showToast(`\ud83d\uddd1 Deleted ${ids.length} video${ids.length!==1?'s':''}`);
 }
 
 function duplicateVideo(id){
