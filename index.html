@@ -3403,6 +3403,14 @@ function renderHome() {
         byCat[cat].push(v);
       });
     });
+    // Per-video view counts (from analytics events) for section ranking
+    const viewCounts = {};
+    (_cachedAnalytics || []).forEach(e => {
+      if (e.type === 'view' && e.videoId) {
+        const k = String(e.videoId);
+        viewCounts[k] = (viewCounts[k] || 0) + 1;
+      }
+    });
     html = Object.entries(byCat).map(([cat, vids]) => {
       const m = cats[cat]||{icon:'📁',color:'#4a7c3f',bg:'rgba(74,124,63,.12)',gradient:'#1a2e18,#0f1f0d'};
       const catId = 'grid-' + cat.replace(/[^a-zA-Z0-9]/g,'-');
@@ -3410,9 +3418,12 @@ function renderHome() {
       let displayVids = vids;
       let hasMore = false;
       if (isAllView && vids.length > 6) {
-        const feat = vids.filter(v=>v.featured);
-        const rest = vids.filter(v=>!v.featured).sort((a,b)=>new Date(b.addedAt||0)-new Date(a.addedAt||0));
-        displayVids = feat.concat(rest).slice(0,6);
+        // Top 6 by view count; ties broken by most recent upload
+        displayVids = vids.slice().sort((a, b) => {
+          const dv = (viewCounts[String(b.id)] || 0) - (viewCounts[String(a.id)] || 0);
+          if (dv) return dv;
+          return new Date(b.addedAt || 0) - new Date(a.addedAt || 0);
+        }).slice(0, 6);
         hasMore = true;
       }
       const safeCat = cat.replace(/'/g,"\\'");
