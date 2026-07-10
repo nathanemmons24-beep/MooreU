@@ -1275,6 +1275,8 @@ async function syncFromDB(){
         [0,1,2].forEach(i=>{if(videos[i])videos[i].featured=true;});
       }
     } catch(e){ console.warn('Videos load failed',e); }
+    // Self-heal any videos missing thumbnails (runs once, in the background)
+    if (_dbUser) setTimeout(() => backfillMissingThumbs().catch(()=>{}), 1500);
 
     // Users
     try {
@@ -5743,6 +5745,31 @@ function seekVideoTo(secs) {
 // ==============================================================
 // AUTO THUMBNAIL FROM URL
 // ==============================================================
+// One-time self-heal: any video that was saved without a thumbnail
+// (e.g. before thumbnail fetching supported unlisted links) gets its
+// thumbnail fetched from Vimeo/YouTube and patched into the database.
+async function backfillMissingThumbs() {
+  if (window._thumbBackfillRan) return;
+  window._thumbBackfillRan = true;
+  const missing = (videos || []).filter(v => v.url && !v.thumb && !v.archived && /vimeo\.com|youtu/i.test(v.url));
+  if (!missing.length) return;
+  let fixed = 0;
+  for (const v of missing) {
+    try {
+      const t = await autofetchThumbnail(v.url);
+      if (t) {
+        v.thumb = t;
+        await DB.patch('mhu_videos', 'id=eq.' + encodeURIComponent(v.id), { thumb: t });
+        fixed++;
+      }
+    } catch(e) {}
+  }
+  if (fixed) {
+    console.log('[Thumb] backfilled ' + fixed + ' missing thumbnail(s)');
+    try { renderHome(); } catch(e) {}
+  }
+}
+
 async function autofetchThumbnail(url) {
   if(!url) return null;
 
