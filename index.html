@@ -3445,7 +3445,7 @@ function renderHome() {
         hasMore = true;
       }
       const safeCat = cat.replace(/'/g,"\\'");
-      const viewAllBtn = hasMore ? '<button onclick="setFilter(\''+safeCat+'\',true)" style="margin-left:auto;background:none;border:none;color:var(--green);font-size:12px;font-weight:700;cursor:pointer;padding:0;font-family:\'Syne\',sans-serif">View All \u2192</button>' : '';
+      const viewAllBtn = ''; // removed — the "See All N Resources" button below the grid is the single entry point
       const seeMoreRow = hasMore ? '<div style="display:flex;justify-content:center;margin-top:14px"><button onclick="setFilter(\''+safeCat+'\',true)" style="background:none;border:1.5px solid var(--green);color:var(--green);border-radius:10px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s" onmouseover="this.style.background=\'var(--green)\';this.style.color=\'#fff\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--green)\'">See All '+vids.length+' Resources \u2192</button></div>' : '';
       return '<div class="cat-section" id="cat-sec-' + cat.replace(/[^a-zA-Z0-9]/g,'-') + '">'
         + '<div class="sec-header">'
